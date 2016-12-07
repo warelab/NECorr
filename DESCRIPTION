@@ -1,0 +1,14 @@
+Package: NECorr
+Type: Package
+Title: Gene Regulatory Network Correlations
+Version: 0.1
+Date: 2016-12-06
+Author: Andrew Olson
+Maintainer: <olson@cshl.edu>
+Description: Implements the Gini Correlation Coefficient as in http://www.plantphysiol.org/content/160/1/192.full
+License: MIT
+LazyData: TRUE
+Imports: 
+    Rcpp (>= 0.12.8)
+LinkingTo: 
+    Rcpp
