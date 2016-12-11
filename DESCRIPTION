@@ -9,6 +9,8 @@ Description: Implements the Gini Correlation Coefficient as in Ma and Wang (2012
 License: MIT + file LICENSE
 LazyData: TRUE
 Imports:
-    Rcpp (>= 0.12.8)
+    Rcpp,
+    RcppParallel
 LinkingTo:
-    Rcpp
+    Rcpp, RcppParallel
+SystemRequirements: GNU make, C++11
