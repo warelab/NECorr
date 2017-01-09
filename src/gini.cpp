@@ -3,8 +3,6 @@
 #include <RcppParallel.h>
 #include <algorithm>
 #include <map>
-#include <bitset>
-#define NBITS 120
 
 using namespace Rcpp;
 using namespace RcppParallel;
@@ -42,7 +40,33 @@ struct expressionRank : public Worker {
   }
 };
 
-inline double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt) {
+// worker to find pairs in parallel
+struct expressionOffsets : public Worker {
+  const CharacterVector sourceNames, targetNames;
+  map<string,int> nameToOffset;
+  IntegerVector source, target;
+
+  expressionOffsets(const CharacterVector sourceNames, const CharacterVector targetNames,
+                    map<string,int> nameToOffset,
+                    IntegerVector source, IntegerVector target)
+    : sourceNames(sourceNames), targetNames(targetNames), nameToOffset(nameToOffset), source(source), target(target)  {
+  }
+
+  void operator()(size_t begin, size_t end) {
+    // iterate over the pairs and store the offset or -1
+
+    for(size_t i = begin; i < end; i++) {
+      string s = as<string>(sourceNames[i]);
+      map<string,int>::iterator it = nameToOffset.find(s);
+      source[i] = (it == nameToOffset.end()) ? -1 : it->second;
+      string t = as<string>(targetNames[i]);
+      it = nameToOffset.find(t);
+      target[i] = (it == nameToOffset.end()) ? -1 : it->second;
+    }
+  }
+};
+
+double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt) {
   double numerator=0;
   double denominator=0;
   for(int i=0;i<xData.size();i++) {
@@ -75,7 +99,7 @@ void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank) {
   }
 }
 
-inline double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt,
+double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt,
                   double theRealGCC, int perm) {
   // make copies of xData and xIdx
   vector<double> rData = xData;
@@ -187,10 +211,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
     wt[j] = (double) 2*(j+1) - nSamples - 1;
   }
 
-  // map gene source and target gene names to offsets in the expression matrix
-  IntegerVector source(nPairs);
-  IntegerVector target(nPairs);
-
+  // create a map for gene names
   List dimNames = expression.attr("dimnames");
   vector<string> geneNames = dimNames[0];
   map<string, int> nameToOffset;
@@ -198,25 +219,20 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
     nameToOffset[geneNames[i]]=i;
   }
 
+  // map gene source and target gene names to offsets in the expression matrix
+  IntegerVector source(nPairs);
+  IntegerVector target(nPairs);
+  CharacterVector sourceNames = edges["source"];
+  CharacterVector targetNames = edges["target"];
+  expressionOffsets expressionOffsets(sourceNames, targetNames, nameToOffset, source, target);
+  parallelFor(0,nPairs,expressionOffsets);
+
   // rank the samples for each gene
   IntegerMatrix rank(nGenes, nSamples);            // allocate space
   expressionRank expressionRank(expression, rank); // initialize worker
   parallelFor(0, nGenes, expressionRank);          // run with parallelFor
 
-  // iterate over the pairs and store the offset or -1
-  CharacterVector sourceNames = edges["source"];
-  CharacterVector targetNames = edges["target"];
-  map<string,int>::iterator it;
-  for(int i=0;i<nPairs;i++) {
-    string s = as<string>(sourceNames[i]);
-    it = nameToOffset.find(s);
-    source[i] = (it == nameToOffset.end()) ? -1 : it->second;
-    string t = as<string>(targetNames[i]);
-    it = nameToOffset.find(t);
-    target[i] = (it == nameToOffset.end()) ? -1 : it->second;
-  }
-
-  // calculate gini correlation coefficient and p-value for each pair of genes
+    // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
   NumericVector pvalue(nPairs);
   scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue);
