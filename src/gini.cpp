@@ -194,7 +194,7 @@ struct scoreEdges : public Worker {
           }
         }
         else {
-          gini[i] = gcc2;
+          gini[i] = -1.0*gcc2;
           if (abs(gcc2) >= statCutoff) {
             pvalue[i] = calcPvalue(td, tr, sr, w, gcc2, bootstrapIterations);
           }
