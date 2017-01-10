@@ -12,6 +12,6 @@ Returns an \R \code{data.frame} containing source ,target, gini, and pval column
 }
 \examples{
 edges <- read.delim("data/network.tsv")
-expr <- read.delim("data/expression.tsv", row.names = 1)
-gini(edges, as.matrix(expr), 10000, 0.5)
+expr <- as.matrix(read.delim("data/expression.tsv", row.names = 1))
+gini(edges, expr, 10000, 0.5)
 }
