@@ -169,27 +169,37 @@ struct scoreEdges : public Worker {
 
   void operator()(size_t begin, size_t end) {
     for(size_t i=begin; i < end; i++) {
-      double gcc = 0.0;
-      double pval = 1.0;
+      gini[i] = 0.0;
+      pvalue[i] = 1.0;
       if (source[i] >= 0 && target[i] >= 0) {
         RMatrix<double>::Row sourceData = data.row(source[i]);
+        RMatrix<double>::Row targetData = data.row(target[i]);
         RMatrix<int>::Row sourceRank = rank.row(source[i]);
         RMatrix<int>::Row targetRank = rank.row(target[i]);
-        vector<double> sd, w;
+        vector<double> sd, td, w;
         vector<int> sr, tr;
         for(size_t j=0;j<sourceData.length();j++) {
           sd.push_back(sourceData[j]);
+          td.push_back(targetData[j]);
           sr.push_back(sourceRank[j]);
           tr.push_back(targetRank[j]);
           w.push_back(wt[j]);
         }
-        gcc = calcGCC(sd, sr, tr, w);
-        if (abs(gcc) >= statCutoff) {
-          pval = calcPvalue(sd, sr, tr, w, gcc, bootstrapIterations);
+        double gcc1 = calcGCC(sd, sr, tr, w);
+        double gcc2 = calcGCC(td, tr, sr, w);
+        if (abs(gcc1) > abs(gcc2)) {
+          gini[i] = gcc1;
+          if (abs(gcc1) >= statCutoff) {
+            pvalue[i] = calcPvalue(sd, sr, tr, w, gcc1, bootstrapIterations);
+          }
+        }
+        else {
+          gini[i] = gcc2;
+          if (abs(gcc2) >= statCutoff) {
+            pvalue[i] = calcPvalue(td, tr, sr, w, gcc2, bootstrapIterations);
+          }
         }
       }
-      gini[i] = gcc;
-      pvalue[i] = pval;
     }
   }
 };
