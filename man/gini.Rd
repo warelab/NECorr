@@ -11,7 +11,7 @@ If it is greater than \code{statCutoff}, also calculate a p-value by doing
 Returns an \R \code{data.frame} containing source ,target, gini, and pval columns
 }
 \examples{
-edges <- read.delim("data/network.tsv")
-expr <- as.matrix(read.delim("data/expression.tsv", row.names = 1))
+edges <- read.delim("data/network.txt")
+expr <- as.matrix(read.delim("data/expression.txt", row.names = 1))
 gini(edges, expr, 10000, 0.5)
 }

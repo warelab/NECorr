@@ -194,7 +194,7 @@ struct scoreEdges : public Worker {
           }
         }
         else {
-          gini[i] = -1.0*gcc2;
+          gini[i] = gcc2;
           if (abs(gcc2) >= statCutoff) {
             pvalue[i] = calcPvalue(td, tr, sr, w, gcc2, bootstrapIterations);
           }
@@ -242,7 +242,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   expressionRank expressionRank(expression, rank); // initialize worker
   parallelFor(0, nGenes, expressionRank);          // run with parallelFor
 
-    // calculate gini correlation coefficient and p-value for each pair of genes
+  // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
   NumericVector pvalue(nPairs);
   scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue);
