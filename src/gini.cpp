@@ -66,10 +66,10 @@ struct expressionOffsets : public Worker {
   }
 };
 
-double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt) {
+double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int n) {
   double numerator=0;
   double denominator=0;
-  for(int i=0;i<xData.size();i++) {
+  for(int i=0;i<n;i++) {
     numerator += wt[i] * xData[yIdx[i]];
     denominator += wt[i] * xData[xIdx[i]];
   }
@@ -86,8 +86,7 @@ unsigned int xorshift128(void) {
   return w;
 }
 
-void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank) {
-  int n = data.size();
+void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank, int n) {
   for(int i=n-1;i>0;i--) {
     // int j = rand() % i;
     int j = xorshift128() % i;
@@ -115,29 +114,21 @@ double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, v
   // z = rand();
   // w = rand();
   int m=0;
-  for(int i=1;i<=perm;i++) {
-    shuffle(rData,rIdx,rRank);
-    double gcc = calcGCC(rData,rIdx,yIdx,wt);
-    if (theRealGCC > 0) {
+  if (theRealGCC > 0) {
+    for(int i=1;i<=perm;i++) {
+      shuffle(rData,rIdx,rRank,n);
+      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
       if (gcc > theRealGCC) {
         m++;
-        if (i < 10 && m > 3) {
-          return (double) m/i;
-        }
-        else if (i < 100 && m > 20) {
-          return (double) m/i;
-        }
       }
     }
-    else {
+  }
+  else {
+    for(int i=1;i<=perm;i++) {
+      shuffle(rData,rIdx,rRank,n);
+      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
       if (gcc < theRealGCC) {
         m++;
-        if (i < 10 && m > 3) {
-          return (double) m/i;
-        }
-        else if (i < 100 && m > 20) {
-          return (double) m/i;
-        }
       }
     }
   }
@@ -178,15 +169,17 @@ struct scoreEdges : public Worker {
         RMatrix<int>::Row targetRank = rank.row(target[i]);
         vector<double> sd, td, w;
         vector<int> sr, tr;
-        for(size_t j=0;j<sourceData.length();j++) {
+        int n = sourceData.length();
+        for(size_t j=0;j<n;j++) {
           sd.push_back(sourceData[j]);
           td.push_back(targetData[j]);
           sr.push_back(sourceRank[j]);
           tr.push_back(targetRank[j]);
           w.push_back(wt[j]);
         }
-        double gcc1 = calcGCC(sd, sr, tr, w);
-        double gcc2 = calcGCC(td, tr, sr, w);
+        double gcc1 = calcGCC(sd, sr, tr, w, n);
+        double gcc2 = calcGCC(td, tr, sr, w, n);
+        // assume we care about gcc more than we care about pvalue
         if (abs(gcc1) > abs(gcc2)) {
           gini[i] = gcc1;
           if (abs(gcc1) >= statCutoff) {
