@@ -1,3 +1,4 @@
+useDynLib(NECorr)
 exportPattern("^[[:alpha:]]+")
 importFrom(Rcpp, evalCpp)
-useDynLib(NECorr)
+importFrom(RcppParallel, RcppParallelLibs)

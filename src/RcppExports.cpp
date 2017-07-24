@@ -6,13 +6,13 @@
 using namespace Rcpp;
 
 // gini
-DataFrame gini(DataFrame edges, DataFrame expression, int bootstrapIterations, double statCutoff);
+DataFrame gini(DataFrame edges, NumericMatrix expression, int bootstrapIterations, double statCutoff);
 RcppExport SEXP NECorr_gini(SEXP edgesSEXP, SEXP expressionSEXP, SEXP bootstrapIterationsSEXP, SEXP statCutoffSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< DataFrame >::type edges(edgesSEXP);
-    Rcpp::traits::input_parameter< DataFrame >::type expression(expressionSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type expression(expressionSEXP);
     Rcpp::traits::input_parameter< int >::type bootstrapIterations(bootstrapIterationsSEXP);
     Rcpp::traits::input_parameter< double >::type statCutoff(statCutoffSEXP);
     rcpp_result_gen = Rcpp::wrap(gini(edges, expression, bootstrapIterations, statCutoff));

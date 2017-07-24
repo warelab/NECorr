@@ -13,7 +13,9 @@ Description: ECorr uses molecular network and a transcriptomic
     through (NECorr-hub) and putative regulator (NeECorr-Reg). Implements the Gini Correlation Coefficient as in http://www.plantphysiol.org/content/160/1/192.full
 License: MIT
 LazyData: TRUE
-Imports: 
-    Rcpp (>= 0.12.8)
-LinkingTo: 
-    Rcpp
+Imports:
+    Rcpp,
+    RcppParallel
+LinkingTo:
+    Rcpp, RcppParallel
+SystemRequirements: GNU make, C++11

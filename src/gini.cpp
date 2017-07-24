@@ -1,152 +1,80 @@
+// [[Rcpp::depends(RcppParallel)]]
 #include <Rcpp.h>
+#include <RcppParallel.h>
 #include <algorithm>
 #include <map>
-#include <bitset>
-#define NBITS 120
 
 using namespace Rcpp;
+using namespace RcppParallel;
 using namespace std;
 
-double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt);
-double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt,
-                  double theAbsOfTheRealGCC, int perm);
+// worker to rank the expression data in parallel
+struct expressionRank : public Worker {
+  const RMatrix<double> data;
+  RMatrix<int> rank;
 
-vector<int> indexValues(vector<double> &values) {
-  int nSamples = values.size();
-  vector<double> sortedValues (nSamples);
-  partial_sort_copy(values.begin(),values.end(),sortedValues.begin(),sortedValues.end());
-  vector<int> valuesIndex (nSamples);
-  // iterate over values, find in sortedValues, store position
-  vector<double>::iterator it;
-  for(int k=0;k<nSamples;k++) {
-    it = find(sortedValues.begin(),sortedValues.end(),values[k]);
-    int rank = it - sortedValues.begin();
-    while (valuesIndex[rank] > 0) {
-      rank++;
-    }
-    valuesIndex[rank] = k+1;
+  expressionRank(const NumericMatrix data, IntegerMatrix rank)
+    : data(data), rank(rank) {
   }
-  for(int rank=0;rank<nSamples;rank++) {
-    valuesIndex[rank]--;
-  }
-  return valuesIndex;
-}
 
-vector<double> r_to_cpp(NumericVector values) {
-  vector<double> vec(values.size());
-  for(int i=0;i<values.size();i++) {
-    vec[i] = values[i];
-  }
-  return vec;
-}
+  void operator()(size_t begin, size_t end) {
+    for(size_t i = begin; i < end; i++) {
+      RMatrix<double>::Row row = data.row(i);
+      RMatrix<int>::Row rankRow = rank.row(i);
 
-// [[Rcpp::export]]
-DataFrame gini(DataFrame edges, DataFrame expression, int bootstrapIterations, double statCutoff) {
-  // edges has two vectors: source and target
-  // each is a list of gene identifiers
-  // The expression data frame has one numeric vector per gene identifier
+      vector<double> sortedRow(row.length());
+      partial_sort_copy(row.begin(),row.end(),sortedRow.begin(),sortedRow.end());
 
-  // sort the expression data for each gene
-  // identify null values (treat 0 as null)
-  int nGenes = expression.size();
-  int nSamples = expression.nrows();
-  vector<string> geneNames = expression.names();
-  map<string,int> idToOffset;
-  vector<vector<double> > data;
-  vector<vector<int> > sorted;
-  vector<bitset<NBITS> > mask;
-  sorted.reserve(nGenes);
-  data.reserve(nGenes);
-  for (int i=0; i<nGenes; i++) {
-    idToOffset[geneNames[i]] = i;
-    vector<double> vec = r_to_cpp(expression[i]);
-    sorted.push_back(indexValues(vec));
-    data.push_back(vec);
-    bitset<NBITS> nullValues;
-    for (int j=0;j<vec.size();j++) {
-      if (vec[j] == 0) {
-        nullValues[j]=1;
+      for(int k=0;k<row.length();k++) {
+        vector<double>::iterator it = find(sortedRow.begin(),sortedRow.end(),row[k]);
+        int r = it - sortedRow.begin();
+        while (rankRow[r] > 0) {
+          r++;
+        }
+        rankRow[r] = k+1;
+      }
+      for(int r=0; r<row.length(); r++) {
+        rankRow[r]--;
       }
     }
-    mask.push_back(nullValues);
+  }
+};
+
+// worker to find pairs in parallel
+struct expressionOffsets : public Worker {
+  const CharacterVector sourceNames, targetNames;
+  map<string,int> nameToOffset;
+  IntegerVector source, target;
+
+  expressionOffsets(const CharacterVector sourceNames, const CharacterVector targetNames,
+                    map<string,int> nameToOffset,
+                    IntegerVector source, IntegerVector target)
+    : sourceNames(sourceNames), targetNames(targetNames), nameToOffset(nameToOffset), source(source), target(target)  {
   }
 
-  // calculate weight vector in advance
-  vector<double> wt (nSamples);
-  for(int j=0;j<nSamples;j++) {
-    wt[j] = (double) 2*(j+1) - nSamples - 1;
-  }
+  void operator()(size_t begin, size_t end) {
+    // iterate over the pairs and store the offset or -1
 
-  // iterate over the source - target pairs
-  int nPairs = edges.nrows();
-  CharacterVector source = edges["source"];
-  CharacterVector target = edges["target"];
-  NumericVector gini, pvalue;
-  for(int i=0;i<nPairs; i++) {
-    string s = as<string>(source[i]);
-    string t = as<string>(target[i]);
-    double gcc = 0.0;
-    double pval = 1.0;
-    map<string,int>::iterator source_it = idToOffset.find(s);
-    if (source_it != idToOffset.end()) {
-      map<string,int>::iterator target_it = idToOffset.find(t);
-      if (target_it != idToOffset.end()) {
-        // process this pair
-        int source_offset = source_it->second;
-        int target_offset = target_it->second;
-        if (mask[source_offset].count() > 0 || mask[target_offset].count() > 0) {
-          bitset<NBITS> nulls = mask[source_offset] | mask[target_offset];
-          int nSamples_nonNull = nSamples - nulls.count();
-          if (nSamples_nonNull >= 4) {
-            vector<double> sourceData (nSamples_nonNull);
-            vector<double> targetData (nSamples_nonNull);
-            vector<double> wt2 (nSamples_nonNull);
-            int i=0;
-            for(int j=0;j<nSamples;j++) {
-              if (!nulls.test(j)) {
-                wt2[i] = (double) 2*(i+1) - nSamples_nonNull - 1;
-                sourceData[i] = data[source_offset][j];
-                targetData[i] = data[target_offset][j];
-                i++;
-              }
-            }
-
-            vector<int> sourceIdx = indexValues(sourceData);
-            vector<int> targetIdx = indexValues(targetData);
-
-            gcc = calcGCC(sourceData,sourceIdx,targetIdx,wt2);
-            if (abs(gcc) >= statCutoff) {
-              // calculate p-value
-              pval = calcPvalue(sourceData,sourceIdx,targetIdx,wt2,gcc,bootstrapIterations);
-            }
-          }
-        }
-        else {
-          gcc = calcGCC(data[source_offset],sorted[source_offset],sorted[target_offset],wt);
-          if (abs(gcc) >= statCutoff) {
-            // calculate p-value
-            pval = calcPvalue(data[source_offset],sorted[source_offset],sorted[target_offset],wt,gcc,bootstrapIterations);
-          }
-        }
-      }
+    for(size_t i = begin; i < end; i++) {
+      string s = as<string>(sourceNames[i]);
+      map<string,int>::iterator it = nameToOffset.find(s);
+      source[i] = (it == nameToOffset.end()) ? -1 : it->second;
+      string t = as<string>(targetNames[i]);
+      it = nameToOffset.find(t);
+      target[i] = (it == nameToOffset.end()) ? -1 : it->second;
     }
-    // append gcc and pval to edges dataframe
-    gini.push_back(gcc);
-    pvalue.push_back(pval);
   }
-  return DataFrame::create(_["source"]= source, _["target"]= target, _["gini"]=gini, _["pval"]=pvalue);
-}
+};
 
-double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt) {
+double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int n) {
   double numerator=0;
   double denominator=0;
-  for(int i=0;i<xData.size();i++) {
+  for(int i=0;i<n;i++) {
     numerator += wt[i] * xData[yIdx[i]];
     denominator += wt[i] * xData[xIdx[i]];
   }
   return numerator/denominator;
 }
-
 static unsigned int x=12345, y=65432, z=362436069, w=521288629;
 unsigned int xorshift128(void) {
   unsigned int t = x;
@@ -158,8 +86,7 @@ unsigned int xorshift128(void) {
   return w;
 }
 
-void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank) {
-  int n = data.size();
+void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank, int n) {
   for(int i=n-1;i>0;i--) {
     // int j = rand() % i;
     int j = xorshift128() % i;
@@ -187,29 +114,21 @@ double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, v
   // z = rand();
   // w = rand();
   int m=0;
-  for(int i=1;i<=perm;i++) {
-    shuffle(rData,rIdx,rRank);
-    double gcc = calcGCC(rData,rIdx,yIdx,wt);
-    if (theRealGCC > 0) {
+  if (theRealGCC > 0) {
+    for(int i=1;i<=perm;i++) {
+      shuffle(rData,rIdx,rRank,n);
+      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
       if (gcc > theRealGCC) {
         m++;
-        if (i < 10 && m > 3) {
-          return (double) m/i;
-        }
-        else if (i < 100 && m > 20) {
-          return (double) m/i;
-        }
       }
     }
-    else {
+  }
+  else {
+    for(int i=1;i<=perm;i++) {
+      shuffle(rData,rIdx,rRank,n);
+      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
       if (gcc < theRealGCC) {
         m++;
-        if (i < 10 && m > 3) {
-          return (double) m/i;
-        }
-        else if (i < 100 && m > 20) {
-          return (double) m/i;
-        }
       }
     }
   }
@@ -218,3 +137,111 @@ double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, v
   }
   return (double) m/perm;
 }
+
+// worker to calculate score edges in parallel
+struct scoreEdges : public Worker {
+  const IntegerVector source;
+  const IntegerVector target;
+  const RMatrix<double> data;
+  const RMatrix<int> rank;
+  const RVector<double> wt;
+  const int bootstrapIterations;
+  const double statCutoff;
+
+  RVector<double> gini, pvalue;
+
+  scoreEdges(const IntegerVector source, const IntegerVector target,
+             const NumericMatrix data, const IntegerMatrix rank, const NumericVector wt,
+             const int bootstrapIterations, const double statCutoff,
+             NumericVector gini, NumericVector pvalue)
+    : source(source), target(target), data(data), rank(rank), wt(wt),
+      bootstrapIterations(bootstrapIterations), statCutoff(statCutoff),
+      gini(gini), pvalue(pvalue) {}
+
+  void operator()(size_t begin, size_t end) {
+    for(size_t i=begin; i < end; i++) {
+      gini[i] = 0.0;
+      pvalue[i] = 1.0;
+      if (source[i] >= 0 && target[i] >= 0) {
+        RMatrix<double>::Row sourceData = data.row(source[i]);
+        RMatrix<double>::Row targetData = data.row(target[i]);
+        RMatrix<int>::Row sourceRank = rank.row(source[i]);
+        RMatrix<int>::Row targetRank = rank.row(target[i]);
+        vector<double> sd, td, w;
+        vector<int> sr, tr;
+        int n = sourceData.length();
+        for(size_t j=0;j<n;j++) {
+          sd.push_back(sourceData[j]);
+          td.push_back(targetData[j]);
+          sr.push_back(sourceRank[j]);
+          tr.push_back(targetRank[j]);
+          w.push_back(wt[j]);
+        }
+        double gcc1 = calcGCC(sd, sr, tr, w, n);
+        double gcc2 = calcGCC(td, tr, sr, w, n);
+        // assume we care about gcc more than we care about pvalue
+        if (abs(gcc1) > abs(gcc2)) {
+          gini[i] = gcc1;
+          if (abs(gcc1) >= statCutoff) {
+            pvalue[i] = calcPvalue(sd, sr, tr, w, gcc1, bootstrapIterations);
+          }
+        }
+        else {
+          gini[i] = gcc2;
+          if (abs(gcc2) >= statCutoff) {
+            pvalue[i] = calcPvalue(td, tr, sr, w, gcc2, bootstrapIterations);
+          }
+        }
+      }
+    }
+  }
+};
+
+// [[Rcpp::export]]
+DataFrame gini(DataFrame edges, NumericMatrix expression,
+               int bootstrapIterations, double statCutoff) {
+  // edges has (at least) two vectors: source and target
+  // each is a list of gene identifiers
+  // The expression data matrix has one row per gene, one column per sample
+
+  int nSamples = expression.ncol();
+  int nGenes = expression.nrow();
+  int nPairs = edges.nrows();
+
+  // calculate weight vector in advance
+  NumericVector wt (nSamples);
+  for(int j=0;j<nSamples;j++) {
+    wt[j] = (double) 2*(j+1) - nSamples - 1;
+  }
+
+  // create a map for gene names
+  List dimNames = expression.attr("dimnames");
+  vector<string> geneNames = dimNames[0];
+  map<string, int> nameToOffset;
+  for(int i=0;i<nGenes;i++) {
+    nameToOffset[geneNames[i]]=i;
+  }
+
+  // map gene source and target gene names to offsets in the expression matrix
+  IntegerVector source(nPairs);
+  IntegerVector target(nPairs);
+  CharacterVector sourceNames = edges["source"];
+  CharacterVector targetNames = edges["target"];
+  expressionOffsets expressionOffsets(sourceNames, targetNames, nameToOffset, source, target);
+  parallelFor(0,nPairs,expressionOffsets);
+
+  // rank the samples for each gene
+  IntegerMatrix rank(nGenes, nSamples);            // allocate space
+  expressionRank expressionRank(expression, rank); // initialize worker
+  parallelFor(0, nGenes, expressionRank);          // run with parallelFor
+
+  // calculate gini correlation coefficient and p-value for each pair of genes
+  NumericVector gini(nPairs);
+  NumericVector pvalue(nPairs);
+  scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue);
+  parallelFor(0, nPairs, scoreEdges);
+
+  return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["pval"]=pvalue);
+}
+
+
