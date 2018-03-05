@@ -86,47 +86,29 @@ unsigned int xorshift128(void) {
   return w;
 }
 
-void shuffle(vector<double> &data, vector<int> &idx, vector<int> &rank, int n) {
-  for(int i=n-1;i>0;i--) {
-    // int j = rand() % i;
-    int j = xorshift128() % i;
-    int tmpD = data[i]; data[i] = data[j]; data[j] = tmpD;
-    int tmpI = rank[i]; rank[i] = rank[j]; rank[j] = tmpI;
-  }
-  for(int i=0;i<n;i++) {
-    idx[rank[i]] = i;
-  }
-}
-
-double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt,
-                  double theRealGCC, int perm) {
-  // make copies of xData and xIdx
-  vector<double> rData = xData;
-  vector<int> rIdx = xIdx;
-  int n = rData.size();
-  // make a rank vector
-  vector<int> rRank (n);
-  for(int i=0;i<n;i++) {
-    rRank[rIdx[i]] = i;
-  }
-  // x = rand();
-  // y = rand();
-  // z = rand();
-  // w = rand();
+double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, double theRealGCC, int perm) {
+  // make copies of the vectors
+  vector<double> xData2 = xData;
+  vector<int> xIdx2 = xIdx;
+  vector<int> yIdx2 = yIdx;
+  vector<double> wt2 = wt;
+  int n = xData.size();
   int m=0;
-  if (theRealGCC > 0) {
-    for(int i=1;i<=perm;i++) {
-      shuffle(rData,rIdx,rRank,n);
-      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
+  for(int i=0; i<perm; i++) {
+    for(int j=0; j < n; j++) { // loop to build random sample with replacement
+      int k = xorshift128() % n; // choose a random offset
+      xData2[j] = xData[k];
+      xIdx2[j] = xIdx[k];
+      yIdx2[j] = yIdx[k];
+      wt2[j] = wt[k];
+    }
+    double gcc = calcGCC(xData2,xIdx2,yIdx2,wt2,n);
+    if (theRealGCC > 0) {
       if (gcc > theRealGCC) {
         m++;
       }
     }
-  }
-  else {
-    for(int i=1;i<=perm;i++) {
-      shuffle(rData,rIdx,rRank,n);
-      double gcc = calcGCC(rData,rIdx,yIdx,wt,n);
+    else {
       if (gcc < theRealGCC) {
         m++;
       }

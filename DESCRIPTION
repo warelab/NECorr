@@ -3,10 +3,8 @@ Type: Package
 Title: Gene Regulatory Network Correlations
 Version: 0.1
 Date: 2016-12-06
-Author: as.person(c(
-    "Andrew Olson <olson@cshl.edu> [aut, cre]”,
-    "Christophe Liseron-Monfils <cliseron@cshl.edu> [aut, cre]"
-  ))
+Author: Andrew Olson <olson@cshl.edu> [aut, cre],
+  Christophe Liseron-Monfils <cliseron@cshl.edu> [aut, cre]
 Maintainer: <olson@cshl.edu>
 Description: ECorr uses molecular network and a transcriptomic
     table to define the backbone of a biological process regulation
