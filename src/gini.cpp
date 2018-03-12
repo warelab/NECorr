@@ -86,38 +86,97 @@ unsigned int xorshift128(void) {
   return w;
 }
 
-double calcPvalue(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, double theRealGCC, int perm) {
-  // make copies of the vectors
+void confidenceInterval(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm, double confidence, double &min, double &max) {
   vector<double> xData2 = xData;
-  vector<int> xIdx2 = xIdx;
-  vector<int> yIdx2 = yIdx;
-  vector<double> wt2 = wt;
   int n = xData.size();
-  int m=0;
+  vector<int> xRank (n);
+  vector<int> yRank (n);
+  vector<int> xIdx2 (n);
+  vector<int> yIdx2 (n);
+
+  vector<vector<int> > xRankPos (n);
+  vector<vector<int> > yRankPos (n);
+
+  vector<double> scoreBins2000 (2000);
+  vector<double> scoreBins20 (20);
+
+  for(int i=0;i<n;i++) {
+    xRank[xIdx[i]] = i;
+    yRank[yIdx[i]] = i;
+  }
   for(int i=0; i<perm; i++) {
-    for(int j=0; j < n; j++) { // loop to build random sample with replacement
+    for(int j=0; j < n; j++) {
+      xRankPos[j].clear();
+      yRankPos[j].clear();
+    }
+    for(int j=0; j < n; j++) {
       int k = xorshift128() % n; // choose a random offset
       xData2[j] = xData[k];
-      xIdx2[j] = xIdx[k];
-      yIdx2[j] = yIdx[k];
-      wt2[j] = wt[k];
+      xRankPos[xRank[k]].push_back(j);
+      yRankPos[yRank[k]].push_back(j);
     }
-    double gcc = calcGCC(xData2,xIdx2,yIdx2,wt2,n);
-    if (theRealGCC > 0) {
-      if (gcc > theRealGCC) {
-        m++;
+    int xRankNew=0;
+    int yRankNew=0;
+    for(int j=0; j<n; j++) {
+      if (xRankPos[j].size() > 0) {
+        for(int k=0; k < xRankPos[j].size(); k++) {
+          xIdx2[xRankNew++] = xRankPos[j][k];
+        }
+      }
+      if (yRankPos[j].size() > 0) {
+        for(int k=0; k < yRankPos[j].size(); k++) {
+          yIdx2[yRankNew++] = yRankPos[j][k];
+        }
       }
     }
-    else {
-      if (gcc < theRealGCC) {
-        m++;
-      }
+    double gcc = calcGCC(xData2,xIdx2,yIdx2,wt,n);
+    int bin = floor((gcc + 1.0)*1000);
+    if (bin < 0) {
+      bin = 0;
     }
+    if (bin >= 2000) {
+      bin = 1999;
+    }
+    scoreBins2000[bin]++;
+    bin = floor((gcc + 1.0)*10);
+    if (bin < 0) {
+      bin = 0;
+    }
+    if (bin >= 20) {
+      bin = 19;
+    }
+    scoreBins20[bin]++;
   }
-  if (m==0) {
-    m = 1;
+  // instead of sorting 10000 numbers
+  // find the first scoreBins20 that contains 2.5% of the data
+  // then go to the scoreBins2000 below that and fine a more precise bin
+  int lowerBound = floor(perm * (1.0 - confidence) / 2.0);
+  int upperBound = perm - lowerBound;
+  int bigBinStart=0;
+  int bigBinTally=scoreBins20[0];
+  while (bigBinTally < lowerBound) {
+    bigBinStart++;
+    bigBinTally += scoreBins20[bigBinStart];
   }
-  return (double) m/perm;
+  int smallBinStart = 100 * bigBinStart;
+  int smallBinTally = bigBinTally - scoreBins20[bigBinStart] + scoreBins2000[smallBinStart];
+  while (smallBinTally < lowerBound) {
+    smallBinStart++;
+    smallBinTally += scoreBins2000[smallBinStart];
+  }
+  min = (double)smallBinStart/1000.0 - 1.0;
+  int bigBinEnd = bigBinStart;
+  while (bigBinTally < upperBound) {
+    bigBinEnd++;
+    bigBinTally += scoreBins20[bigBinEnd];
+  }
+  int smallBinEnd = 100 * bigBinEnd;
+  smallBinTally = bigBinTally - scoreBins20[bigBinEnd] + scoreBins2000[smallBinEnd];
+  while (smallBinTally < upperBound) {
+    smallBinEnd++;
+    smallBinTally += scoreBins2000[smallBinEnd];
+  }
+  max = (double)smallBinEnd/1000.0 - 1.0;
 }
 
 // worker to calculate score edges in parallel
@@ -130,20 +189,22 @@ struct scoreEdges : public Worker {
   const int bootstrapIterations;
   const double statCutoff;
 
-  RVector<double> gini, pvalue;
+  RVector<double> gini, mingini, maxgini;
 
   scoreEdges(const IntegerVector source, const IntegerVector target,
              const NumericMatrix data, const IntegerMatrix rank, const NumericVector wt,
              const int bootstrapIterations, const double statCutoff,
-             NumericVector gini, NumericVector pvalue)
+             NumericVector gini, NumericVector mingini, NumericVector maxgini)
     : source(source), target(target), data(data), rank(rank), wt(wt),
       bootstrapIterations(bootstrapIterations), statCutoff(statCutoff),
-      gini(gini), pvalue(pvalue) {}
+      gini(gini), mingini(mingini), maxgini(maxgini) {}
 
   void operator()(size_t begin, size_t end) {
     for(size_t i=begin; i < end; i++) {
       gini[i] = 0.0;
-      pvalue[i] = 1.0;
+      //pvalue[i] = 1.0;
+      mingini[i] = 0.0;
+      maxgini[i] = 0.0;
       if (source[i] >= 0 && target[i] >= 0) {
         RMatrix<double>::Row sourceData = data.row(source[i]);
         RMatrix<double>::Row targetData = data.row(target[i]);
@@ -161,17 +222,16 @@ struct scoreEdges : public Worker {
         }
         double gcc1 = calcGCC(sd, sr, tr, w, n);
         double gcc2 = calcGCC(td, tr, sr, w, n);
-        // assume we care about gcc more than we care about pvalue
         if (abs(gcc1) > abs(gcc2)) {
           gini[i] = gcc1;
           if (abs(gcc1) >= statCutoff) {
-            pvalue[i] = calcPvalue(sd, sr, tr, w, gcc1, bootstrapIterations);
+            confidenceInterval(sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
           }
         }
         else {
           gini[i] = gcc2;
           if (abs(gcc2) >= statCutoff) {
-            pvalue[i] = calcPvalue(td, tr, sr, w, gcc2, bootstrapIterations);
+            confidenceInterval(td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
           }
         }
       }
@@ -219,11 +279,13 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
 
   // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
-  NumericVector pvalue(nPairs);
-  scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue);
+  // NumericVector pvalue(nPairs);
+  NumericVector mingini(nPairs);
+  NumericVector maxgini(nPairs);
+  scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, mingini, maxgini);
   parallelFor(0, nPairs, scoreEdges);
 
-  return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["pval"]=pvalue);
+  return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["mingini"]=mingini, _["maxgini"]=maxgini);
 }
 
 
