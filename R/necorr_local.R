@@ -22,8 +22,49 @@ Necorr <- function(network.file, description.file, factor.file,
                    permutation = 1000,
                    CoorMetric= 'GCC'
                    Filelist #condition list see if still necessary with metadata
-                   ){
+                   method = "GCC", permutation = 1000, sigcorr = 0.01,
+                   fadjacency = "only",
+                   gdesc,
+                   type = "gene",
+                   dirtmp="./results/tmp", dirout = './results'){
+  #' @author Christophe Liseron-Monfils
+  #' @param expsion Expression file in log2 (ratio expression) with row: gene,
+  #' first column: type of sample,second column: sample names
+  #' @param network Molecular network file with source in the first column, targets in
+  #'  the second column
+  #' @param condition Condition from expression to study the network co-expression
+  #' correlation
+  #' @param type Omics comparative expression type: protein or gene
+  #' @param permutation permutation number used for all significance calculation
+  #' @param lmiR List of miRNAs
+  #' @param method Method used for co-expression correlation: GCC, MINE, PCC,
+  #' SCC or KCC
+  #' @param gdesc genome description
+  #' @param dirtmp directory for the temporary results
+  #' @param dirout directory for the results
+  #' @param fadjacency correlation with all combination (all) or network
+  #' combination only (only)
+  #' @description NECorr helps discover candidate genes that could be
+  #' important for specific conditions.
+  #' The principal inputs are the expression data and the network file.
+  #' The expression data should start with 3 header columns.
+  #' The first column describes the conditions. Each condition will be
+  #' treated separately for the co-expression analysis
+  #' The output of the program will be generated in a result folder generated
+  #' in the working path
   
+  # Create a random number used for the rest of the analysis
+  # this will distingish analysis done with the same dataset.
+  nb <- RANDOM
+  
+  # Create the output directory if not existing; generate "./results" dir and
+  # "./results/tmp"
+  if(!dir.exists(dirout)){
+    dir.create(dirout)
+  }
+  if(!dir.exists(dirtmp)){
+    dir.create(dirtmp, recursive = T)
+  }
   # AT THE END ADD THE OTHER FUNCTIONS FROM SOURCE
   #source("./src/NECorr.functions.v3.R")
   #load("./src/ML_model.RData")
@@ -89,7 +130,7 @@ Necorr <- function(network.file, description.file, factor.file,
   xcol <-c()
   treatment.f <- factor()
   for (i in 1:length(sample.names)){ 
-    nrep <- length(which(factortab$Treatment== sample.names[i]))
+    nrep <- length(which(factortab$Treatment == sample.names[i]))
     if(nrep == 1){
       xcol <- c(xcol,rep(i,3))
       treatment.f <- factor(c(as.character(treatment.f),as.character(rep(sample.names[i],3))))
@@ -159,60 +200,464 @@ Necorr <- function(network.file, description.file, factor.file,
                          methods= CoorMetric, output = "paired", sigmethod = "two.sided", 
                          pernum = permutation , verbose = FALSE, cpus = NSockets, type = incrtype)
     
+    
+    filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
+    int.sig.file <- int.sig
+    colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
+    write.csv(int.sig.file, paste0(mainDir,"/",filecoexp))
+    
+    # create a function to generate a continuous color palette
+    rbPal <- colorRampPalette(c('yellow','blue'))
+    
+    # This adds a column of color values based on the y values
+    # remove the line with NA due to not found gene due to no expresssion
+    # or error of annotation in the initial network file
+    int.sig <- int.sig[complete.cases(int.sig),]
+    
+    # Transform the p-value in the maximal p-value in function of number of permutations to avoid log-scale = infinity
+    # Replace the p-value equal to 0 by the maximal p-value e.g. 1/10000 knowing that we have 10000 randomizations in initial calculations
+    max.p.val = 1/as.numeric(permutation)
+    int.sig[which(int.sig[,4] == 0),4] = max.p.val
+    int.sig <-as.data.frame(int.sig)
+    p.int.sig  = as.numeric(as.character(int.sig[,4]))
+    pval <- -log(p.int.sig,10)
+    int.sig$Col <- rbPal(10)[as.numeric(cut(pval,breaks = 10))]
+    title <- paste0(as.character(files[as.numeric(CondNB),1]),"Sig.Interaction.pdf")
+    pdf(title)
+    xlabel = paste0(CoorMetric," score")
+    #plot(as.numeric(as.character(int.sig[,3])),pval,pch = ".", xlab=xlabel,ylab= "Significance (-log scale)",col= int.sig$Col )
+    #abline( h=1.3, col ="red",lty='dotted')
+    #legend("top", pch= c(21,21,NA), title="Interaction Significance",
+    #       bty = "n",
+    #       col = c("yellow", "blue", "red"),
+    #       pt.bg= c("yellow", "blue", NA),
+    #       lty = c(0, 0, 3), lwd = c(0, 0, 1),
+    #       legend=c("low","high", "pval = 0.05"),
+    #       cex =0.8)
+    #dev.off()
+    
+    # main analysis and weight
+    for (i in 1:length(df[,1])){
+      nsockets = NSockets
+      #i <- 1
+      CondName <- df[i,1]
+      CondPutFile <- paste0("3_Expression",name,"_",netname,"_",condition, "_gene_",CoorMetric,"_",incrtype,"_",permutation,"_",CondName,"_CorrM_PvalM.txt")
+      sample.l <- df[i,2]
+      print(paste( "the condition is",CondName,"the factor is:",sample.l,sep=" "))
+      print(paste( "correlation",CondPutFile,"files:",filecoexp,sep=" "))
+      # interaction file
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### III - Define gene tissue specificity index (TSI) (Yanai 2011, Bioinformatics)")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      # Add the weight for the studied tissue
+      # tissue selectivity or tissue exclusion from the tissue should be considered
+      # as both can important at genetic level repression or activation of a gene
+      # are part of the tissue specificity
+      
+      nreplics <- table(treatment.f) ####  Need to find a way to order factor by order of appearance in expression file
+      # e.g nreplics <- c(4,4,4)
+      
+      m.eset = as.matrix(m.eset)
+      
+      # Comparison to find tissue selectivity for the selected condition
+      # using Intersection-Union Test (Berger et al)
+      act <- IUT(m.eset, nreplics, which(sample.names == sample.l), 1, 0.5, -1)
+      rep <- IUT(m.eset, nreplics, which(sample.names == sample.l), -1, 0.5, -1)
+      #### do following steps if the expression if act and/or rep are not null
+      table(treatment.f)
+      
+      # Rank the tissue selective genes using the Tissue Selective Index
+      # for each gene TSI for activation and modify for tissue repression
+      m.eset = as.data.frame(m.eset)
+      meansFactor <- do.call("cbind", tapply(1:ncol(m.eset), treatment.f, function(x) rowMeans(m.eset[x])))
+      # Tissue-selective genes(up)
+      if(length(act[which(act==TRUE)])>0){
+        act <- act[which(names(act) %in% rownames(meansFactor))]
+        StA <- length(meansFactor[names(act[which(act==TRUE)]),])
+        StB <- length(colnames(meansFactor))
+        if( StA > StB){
+          tsi = apply(meansFactor[which(act==TRUE),],1,TSI)
+          tsi.order <- tsi[order(tsi,decreasing = TRUE)]
+        }else if( StA == StB){ # if there is only one tissue-selective genes
+          tsi = TSI(meansFactor[which(act==TRUE),])
+          names(tsi) <- rownames(meansFactor)[which(act==TRUE)]
+          tsi.order =  tsi
+        }else if(StA < StB){ # if there is none tissue-selective genes
+          tsi = c()
+          tsi.order = c()
+        }
+      }
+      # Tissue-selective genes(down)
+      if(length(rep[which(rep==TRUE)])>0){
+        rep <- rep[which(names(rep) %in% rownames(meansFactor))]
+        StA <- length(meansFactor[which(rep==TRUE),])
+        StB <- length(colnames(meansFactor))
+        if( StA > StB){
+          tsr = apply(meansFactor[which(rep==TRUE),],1,TSR)
+          tsr.order <- tsr[order(tsr,decreasing = TRUE)]
+        }else if( StA == StB){ # if there is only one tissue selective gene
+          tsr = TSR(meansFactor[which(rep==TRUE),])
+          names(tsr) <- rownames(meansFactor)[which(rep==TRUE)]
+          tsr.order =  tsr
+        }else if(StA < StB){ # if there is none tissue selective genes
+          tsr = c()
+          tsr.order = c()
+        }
+      }
+      # Vector of tissue-selectivity
+      ts <- c(tsr,tsi) #2 expression specificity
+      if(!is.null(ts)){
+        write.csv(meansFactor[names(c(tsr.order,tsi.order)),],
+                  paste0(subDirTS,sample.l,CondName,netname,"_",CoorMetric,"_",permutation,"TS_ranking.csv"))
+        
+        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",CoorMetric,"_",permutation,"TS_ranking.pdf")
+        y <- as.matrix(meansFactor[names(c(tsr.order,tsi.order)),])
+        if(length(names(c(tsr.order,tsi.order))) > 10){
+          decal.y <- -3*(length(names(c(tsr.order,tsi.order)))/length(Genelist))
+        }else{
+          decal.y <- 0.2
+        }
+        pdf(title, height=10, width=15)
+        heatmap.2(as.matrix(meansFactor[names(c(tsr.order,tsi.order)),]), Rowv =FALSE,
+                  Colv = FALSE,scale ="row",
+                  main = paste0(sample.l,CondName," Condition selective genes"),
+                  density.info= "none",cexCol= 0.8,labRow='',
+                  trace= "none",dendrogram = "none",
+                  margins = c(15, 4),
+                  lhei = c(1, 8),
+                  keysize= .6,labCol = '',
+                  add.expr = text(x = seq_along(colnames(y)),
+                                  y = decal.y,
+                                  srt = 60,cex=.8,
+                                  labels = colnames(y), xpd = NA,adj=0, pos =2),
+                  col=colorpanel(121,"lightyellow","yellow","darkblue")
+        )
+        dev.off()
+      }
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### IV - Determine the overall interaction importance for each node (gene)")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      # for the interactions coming from the same node
+      # create hash with all the gene in the network as keys
+      int.pvals = structure(rep(1, length(Genelist)), names=Genelist)   #1 interaction p-values
+      
+      # add a vector with all the p-value attached to a gene
+      # in the co-expression analysis
+      for (i in 1:length(Genelist)){
+        gene = Genelist[i] # get the name of the gene
+        #print(gene)
+        list = c(grep(gene,int.sig[,1]) , grep(gene,int.sig[,2]))
+        #print(list)
+        pvals = int.sig[list,4]
+        pvals[pvals== 0] = max.p.val  # replace the p-value equal to 0 by the maximal p-value here 1/10000 knowing that we have 10000 randomizations in initial calculations
+        #print(pvals)
+        trans.cumpvals = fishersMethod(as.numeric(as.vector(pvals)))
+        #print(trans.cumpvals)
+        cumpvals = - log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
+        int.pvals[gene]=cumpvals
+        #print(cumpvals)
+      }
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### V Differential Expression ranking for the gene in the network for the factor")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      DE.ranks <- DE.ranking(m.eset,Genelist,treatment.f,sample.l)
+      #the results are already scaled
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### VI Normalize each column between [0,1] using the some")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      int.pvals = ScalN(int.pvals)  #1 interaction p-values
+      ts = ScalN(ts) #2 expression specificity
+      BetwC = ScalN(BetwC) #3 betweeness
+      Conn = ScalN(Conn) #4 connectivity
+      ClusCoef = ScalN(ClusCoef)  #5 transitivity
+      PageRank <- ScalN(PageRank)
+      
+      int.pvals = as.data.frame(int.pvals)  #1 interaction p-values
+      ts = as.data.frame(ts); #2 expression specificity
+      BetwC = as.data.frame(BetwC) #3 betweeness
+      Conn = as.data.frame(Conn) #4 connectivity
+      ClusCoef = as.data.frame(ClusCoef)  #5 transitivity
+      EigenC = as.data.frame(EigenC)
+      PageRank = as.data.frame(PageRank)
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### VII - Hub NECorr merge all the subnetwork statistics for the studied tissue or condition in one table column")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      m.param = merge(int.pvals,ts,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],BetwC,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],Conn,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],ClusCoef,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],EigenC,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],PageRank,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param = merge(m.param[,-1],DE.ranks,by="row.names",all=T)
+      rownames(m.param) = m.param$Row.names
+      m.param[is.na(m.param)] = 0
+      par.tab <- m.param
+      colnames(m.param) = c("GeneID","interaction.pvals",
+                            "tissue.treatment.specificity","Betweenness.Centrality",
+                            "Connectivity","Transitivity","Eigenvector","PageRank","DE")
+      #tail(m.param)
+      par.tab <- m.param
+      write.table(par.tab,
+                  paste0("results/",condition,"/8_hub_gene_Std_param.",sample.l,"_",CondName,"_",netname,"_",CoorMetric,"_",permutation,".txt"),
+                  sep = "\t",quote = FALSE,row.names = FALSE)
+      rm(par.tab)
+      m.param = m.param[,-1]
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### VIII - calculate the weight for: (use ahp to generate weight)")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      #done before the loop wpar variable
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### IX Hub NECorr - pick the top genes for validations (best alternatives)")
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      # calculate the weighted ranking for each gene = alternative ranking
+      hub.m.param <-  m.param[,c( "interaction.pvals",
+                                  "tissue.treatment.specificity","Betweenness.Centrality","Connectivity","Transitivity")]
+      for (i in 1:length(colnames(hub.m.param))){
+        hub.m.param[,i] = hub.m.param[,i]*wpar[i]
+      }
+      
+      # gene ranking
+      gene.rank.h = apply(hub.m.param,1,sum)*100
+      gene.rank.h = gene.rank.h[order(gene.rank.h, decreasing=TRUE)]
+      gene.rank.h = as.data.frame(gene.rank.h)
+      
+      gene.rank.h.description = merge(gene.rank.h,Desc,all.x = T, by = "row.names",sort=FALSE)
+      colnames(gene.rank.h.description)[1]<- "GeneID"
+      write.csv(as.data.frame(gene.rank.h.description),paste0(subDirFile,sample.l,netname,permutation,"_Hub_gene_prioritization.csv")
+                ,quote=FALSE,row.names=FALSE)
+      colnames(gene.rank.h)[1] <- sample.l
+      total.rank.h <- merge(total.rank,gene.rank.h,all.x=T, by= "row.names")
+      rownames(total.rank.h) <- total.rank.h[,1]
+      total.rank.h <- total.rank.h[,-1]
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### X - Effector NECorr - pick the top genes for validations (best alternatives)")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      
+      # calculate the probability = alternative ranking
+      eff.m.param <-  m.param[,c( "interaction.pvals","tissue.treatment.specificity","Betweenness.Centrality",
+                                  "Connectivity","Eigenvector","PageRank","DE")]
+      
+      ### MACHINE LEANRING with paramter deine from validation
+      ### Predict probality to be important gene
+      
+      #!!!! if Naive Bayes
+      suppressWarnings(suppressPackageStartupMessages(library(klaR)))
+      #j.nB <- NaiveBayes(phenotype ~ . , data = eff.m.param, kernel = "rectangular", n = 148)
+      j.nB <- model
+      prob.pred  <- predict(j.nB, type="prob",newdata = eff.m.param )
+      
+      gene.rank.eff <- (prob.pred$posterior)[,2]
+      gene.rank.eff = gene.rank.eff[order(gene.rank.eff, decreasing=TRUE)]
+      gene.rank.eff = as.data.frame(gene.rank.eff)
+      
+      gene.rank.e.description = merge(gene.rank.eff,Desc,all.x = T, by = "row.names",sort=FALSE)
+      colnames(gene.rank.e.description)[1]<- "GeneID"
+      write.csv(as.data.frame(gene.rank.e.description),paste0(subDirFile,sample.l,netname,permutation,"_effector_gene_prioritization.csv")
+                ,quote=FALSE,row.names=FALSE)
+      colnames(gene.rank.eff)[1] <- sample.l
+      total.rank.eff <- merge(total.rank,gene.rank.eff,all.x=T, by= "row.names")
+      rownames(total.rank.eff) <- total.rank.eff[,1]
+      total.rank.eff <- total.rank.eff[,-1]
+      
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### XI - Hub interaction ranking")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      # hub sub-network
+      cl2 <- makeCluster(nsockets, type="SOCK")
+      registerDoSNOW(cl2)
+      hub.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
+        SourceID <- as.character(network.int[i,1])
+        TargetID <- as.character(network.int[i,2])
+        ranks.sum <- sum(gene.rank.h[SourceID,1], gene.rank.h[TargetID,1])
+        c(SourceID,TargetID,ranks.sum)
+      }
+      stopCluster(cl2)
+      
+      break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,3]))), Inf)
+      p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE )
+      p2 <- 1 - p2/length(break.points)
+      hub.int.ranks <- as.data.frame(cbind(hub.int.ranks,p2))
+      hub.int.ranks$p2 <- as.numeric(as.character(hub.int.ranks$p2))
+      hub.int.significant = subset(hub.int.ranks, p2 < 0.005)
+      write.csv(hub.int.ranks,paste0(subDirFile,sample.l,netname,permutation,"_interactions_prioritization.csv"),quote=FALSE,row.names=FALSE)
+      # effector sub-network
+      cl3 <- makeCluster(nsockets, type="SOCK")
+      registerDoSNOW(cl3)
+      eff.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
+        SourceID <- as.character(network.int[i,1])
+        TargetID <- as.character(network.int[i,2])
+        ranks.sum <- sum(gene.rank.eff[SourceID,1], gene.rank.eff[TargetID,1])
+        c(SourceID,TargetID,ranks.sum)
+      }
+      stopCluster(cl3)
+      
+      break.points <- c(-Inf, unique(sort(as.numeric(eff.int.ranks[,3]))), Inf)
+      p2 <- cut( as.numeric(eff.int.ranks[,3]), breaks=break.points, labels=FALSE )
+      p2 <- 1 - p2/length(break.points)
+      eff.int.ranks <- as.data.frame(cbind(eff.int.ranks,p2))
+      eff.int.ranks$p2 <- as.numeric(as.character(eff.int.ranks$p2))
+      eff.int.significant = subset(eff.int.ranks, p2 < 0.005)
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### XII - Activator NECorr - based on genes in the complete network that are linked to the hub genes")
+      start.time <- Sys.time()
+      ###------------------------------------------------------------------------------------------------------------------------
+      # find genes that are significant in the hub subnetwork in the complete network
+      sig.hub <- unique(c(as.character(hub.int.significant$V1), as.character(hub.int.significant$V2)))
+      sc.sig.hub <- subset(network.int, network.int$source %in% sig.hub)
+      tg.sig.hub <- subset(network.int, network.int$target %in% sig.hub)
+      net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
+      
+      ## change the names of the hub gene in the extented hub network using source genes
+      change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
+      tmp<-as.character(net.extension.sig.hub[,1])
+      tmp[change.sig.hubNames]<-"sig"
+      net.extension.sig.hub[,1] <- tmp
+      
+      ## change the names of the hub gene in the extented hub network using target genes
+      change.sig.hubNames <- net.extension.sig.hub[,2] %in% sig.hub
+      tmp<-as.character(net.extension.sig.hub[,2])
+      tmp[change.sig.hubNames]<-"sig"
+      net.extension.sig.hub[,2] <- tmp
+      
+      ## network extended to putative regulator using source genes
+      act.m.param <- net.extension.sig.hub
+      sc.count <- rle( sort( act.m.param[,1] ))
+      act.m.param$Count <- sc.count[ match( act.m.param[,1] , sc.count ) ]
+      
+      # gene ranking of linked to hub nodes
+      gene.rank.act <-  cbind(sc.count$values, sc.count$lengths)
+      gene.rank.act <- gene.rank.act[order(as.numeric(gene.rank.act[,2]), decreasing=TRUE),]
+      gene.rank.act <- gene.rank.act[ - which(gene.rank.act[,1] == "sig"),]
+      
+      # add the gene that have 25% of the gene linked to hub genes
+      gene.rank.act.significant <- gene.rank.act[which(gene.rank.act[,2] >= (length(sig.hub)*0.20)),]
+      
+      # write the putative activator genes
+      gene.rank.act.b <- as.data.frame(gene.rank.act)
+      gene.rank.act.description = merge(gene.rank.act.b,Desc,all.x = T, by.x = "V1", by.y = 0,sort=FALSE)
+      colnames(gene.rank.act.description)[1]<- "GeneID"
+      write.csv(as.data.frame(gene.rank.act.description),paste0(subDirFile,sample.l,netname,permutation,"_act_gene_prioritization.csv")
+                ,quote=FALSE,row.names=FALSE)
+      
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
+      ###------------------------------------------------------------------------------------------------------------------------
+      print("### XIII  - Vizualization of network and list of interaction that could affected and color")
+      ###------------------------------------------------------------------------------------------------------------------------
+      start.time <- Sys.time()
+      suppressWarnings(suppressPackageStartupMessages(library(igraph)))
+      suppressWarnings(suppressPackageStartupMessages(library(dnet)))
+      hub.net <- as.data.frame(cbind(as.character(hub.int.significant$V1), as.character(hub.int.significant$V2),
+                                     as.numeric(as.character(hub.int.significant$V3)), rep("hub", nrow(hub.int.significant))))
+      colnames(hub.net) <- c("source","target","score","node.type")
+      # significant activator sub-netowrk linked to hub network
+      net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
+      act.net.1 <- subset(net.extension.sig.hub, net.extension.sig.hub[,1] %in% as.vector(as.character(gene.rank.act.significant[,1])))
+      act.net.2 <- subset(net.extension.sig.hub, net.extension.sig.hub[,2] %in% as.vector(as.character(gene.rank.act.significant[,1])))
+      act.net.pre <- rbind(act.net.1,act.net.2)
+      meanSig <- mean(as.vector(as.numeric(as.character(hub.int.significant$V3))))
+      act.net <- cbind(act.net.pre,
+                       rep(meanSig,nrow(act.net.pre)),
+                       rep("act",nrow(act.net.pre)))
+      rm(act.net.1,act.net.2,act.net.pre,meanSig)
+      colnames(act.net) <- c("source","target","score","node.type")
+      # significant effector sub-netowrk linked to hub network
+      sc.sig.eff <- subset(eff.int.significant, eff.int.significant$V1 %in% sig.hub)
+      tg.sig.eff <- subset(eff.int.significant, eff.int.significant$V2 %in% sig.hub)
+      eff.net.pre <- rbind(sc.sig.eff,tg.sig.eff)
+      eff.net <- cbind(eff.net.pre[,1],eff.net.pre[,2],eff.net.pre[,3], rep(nrow(eff.net.pre)))
+      rm(sc.sig.eff,tg.sig.eff,eff.net.pre)
+      
+      # link activator and hub significant sub-networks
+      hub.act.net <- rbind(act.net,hub.net)
+      g <- graph.data.frame(hub.act.net, directed = T)
+      
+      vcolors <- rep("cyan",length(V(g)$name))
+      vcolors[which(V(g)$name %in% sig.hub)] <- "red"
+      
+      vsize.hub <- as.numeric(gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
+      vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
+      
+      temp <- as.data.frame(gene.rank.act.significant)
+      rownames(temp) <- temp[,1]
+      vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
+      vsize.act <- 2^(ScalN(vsize.act) + 2.21)
+      vsize <- c(vsize.act,vsize.hub)
+      vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
+      if (is.finite(vsize) & vsize>0){
+        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",CoorMetric,"_",permutation,"interaction_graph.pdf")
+        # 	    mark.groups <- vcolors
+        # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
+        # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
+        #
+        # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
+        pdf(file = title, width = 10, height = 10)
+        dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , vertex.shape="sphere", vertex.size = vsize, vertex.label = vlabel, edge.color = "grey",edge.arrow.size = 0.3, vertex.color = vcolors,vertex.frame.color = vcolors, newpage = F)
+        dev.off()
+      }
+    }
   }
-}
-#################### TO merge with preceding function
-necorr <- function(expsion , network, condition,
-                   lmiR = "1.Ath.affinity.gene.txt",
-                   method = "GCC", permutation = 1000, sigcorr = 0.01,
-                   fadjacency = "only",
-                   gdesc,
-                   type = "gene",
-                   dirtmp="./results/tmp", dirout = './results'){
-#' @author Christophe Liseron-Monfils
-#' @param expsion Expression file in log2 (ratio expression) with row: gene,
-#' first column: type of sample,second column: sample names
-#' @param network Molecular network file with source in the first column, targets in
-#'  the second column
-#' @param condition Condition from expression to study the network co-expression
-#' correlation
-#' @param type Omics comparative expression type: protein or gene
-#' @param permutation permutation number used for all significance calculation
-#' @param lmiR List of miRNAs
-#' @param method Method used for co-expression correlation: GCC, MINE, PCC,
-#' SCC or KCC
-#' @param gdesc genome description
-#' @param dirtmp directory for the temporary results
-#' @param dirout directory for the results
-#' @param fadjacency correlation with all combination (all) or network
-#' combination only (only)
-#' @description NECorr helps discover candidate genes that could be
-#' important for specific conditions.
-#' The principal inputs are the expression data and the network file.
-#' The expression data should start with 3 header columns.
-#' The first column describes the conditions. Each condition will be
-#' treated separately for the co-expression analysis
-#' The output of the program will be generated in a result folder generated
-#' in the working path
-
-# Create a random number used for the rest of the analysis
-# this will distingish analysis done with the same dataset.
-nb <- RANDOM
-
-# Create the output directory if not existing; generate "./results" dir and
-# "./results/tmp"
-if(!dir.exists(dirout)){
-  dir.create(dirout)
-}
-if(!dir.exists(dirtmp)){
-  dir.create(dirtmp, recursive = T)
-}
-
-# Generate the expression factor file ( see ./src/a.1.factorfile.v2.pl)
-factorstab <- factorfile(exps = expsion, nb = nb,  condition = condition, dirout = dirtmp)
-
-stdout <- mainNecorr( )
-
 }
 ########################
 factorfile <- function(exps, nb, condition , dirout = "./results/tmp/"){
@@ -260,7 +705,7 @@ extractname <- function(filestring){
 # 
 
 cor.matrix.NECorr <- function (GEMatrix, cpus = cpus, 
-                               cormethod = c("GCC", "PCC", "SCC", "KCC", "BiWt"), 
+                               cormethod = c("GCC", "PCC", "SCC", "KCC"), 
                                style = c("pairs.between","pairs.only"), 
                                var1.id = NA, var2.id = NA, 
                                pernum = 0, 
@@ -294,30 +739,15 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
   if( style =="pairs.only"){
     taskmatrix <- cbind(var1.id, var2.id)
   }
-  # if (style == "all.pairs") {
-  # var1.id <- seq(1, dim(GEMatrix)[1], by = 1)
-  # var2.id <- var1.id
-  # }
-  #if(style == "pairs.between" || style == "all.pairs") {
   if(style == "pairs.between") {
     df <- expand.grid.unique(var1.id, var2.id, include.equals = TRUE)
     df2 = t(apply(df, 1, sort))
     taskmatrix <- df2[!duplicated(df2),]
   }
-  #if (cpus == 1 | cormethod == "BiWt") {
-  #  suppressWarnings(suppressPackageStartupMessages(require(biwt)))
   pernum = as.numeric(pernum)
   results <- apply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix,
                    rowORcol = "row", cormethod = cormethod, pernum = pernum, 
                    sigmethod = sigmethod)
-  #}else(){
-  #sfnit(parallel = TRUE, cpus = cpus)
-  #print(sprintf("%s cpus to be used", sfCpus()))
-  #     results <- sfApply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix, 
-  #                        rowORcol = "row", cormethod = cormethod, pernum = pernum, 
-  #                        sigmethod = sigmethod)
-  #     sfStop()
-  #   }
   if (output == "paired") {
     kk <- 0
     corpvalueMatrix <- matrix(NA, nrow = dim(taskmatrix)[1], ncol = 4)
@@ -369,36 +799,40 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
 bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KCC"),
                       sigmethod = c("two.sided", "one.sided"),
                       nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
-  suppressWarnings(suppressPackageStartupMessages(require(foreach)))
-  suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
-  nsockets <- as.numeric(nsockets)
-  cl <- makeCluster(nsockets, type="SOCK")
-  registerDoSNOW(cl)
+
   corMAT <- c()
-  Nrow = nrow(net)
-  fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
-  matnet <- split(net,fc)
-  #corMAT <-foreach(i=1:nblocks, .combine='rbind') %do% {
-  corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair','gcc.corfinal'))%dopar%{
-    netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
-    G1 <- as.numeric(as.vector(netindexed[,1]))
-    G2 <- as.numeric(as.vector(netindexed[,2]))
-    cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods, 
-                      pernum=pernum, output=output, cpus=cpus, style="pairs.only")
+  if (methods = "GCC"){
+    #### NEW GINI CORRLATION CALCULATION
+    corMAT <- gini(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6) 
+  }else{
+    suppressWarnings(suppressPackageStartupMessages(require(foreach)))
+    suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
+    nsockets <- as.numeric(nsockets)
+    cl <- makeCluster(nsockets, type="SOCK")
+    registerDoSNOW(cl)
+    
+    Nrow = nrow(net)
+    fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
+    matnet <- split(net,fc)
+    corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair','gcc.corfinal'))%dopar%{
+      netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
+      G1 <- as.numeric(as.vector(netindexed[,1]))
+      G2 <- as.numeric(as.vector(netindexed[,2]))
+      cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods, 
+                        pernum=pernum, output="paired", cpus=cpus, style="pairs.only")
     }
-  stopCluster(cl)
-  return(corMAT)
+    stopCluster(cl)
+    
+  }
+   return(corMAT)
   
 }
-
 
 expand.grid.unique <- function(x, y, include.equals=FALSE){
   x <- unique(x)
   y <- unique(y)
-  g <- function(i)
-  {
+  g <- function(i){
     z <- setdiff(y, x[seq_len(i-include.equals)])
-    
     if(length(z)) cbind(x[i], z, deparse.level=0)
   }
   do.call(rbind, lapply(seq_along(x), g))
@@ -417,8 +851,6 @@ indexing.network <- function (tab,network) {
   netindex <-  do.call(rbind,apply(tt1, 1, indexing,tab))
   return(netindex)     
 }
-
-
 
 #differential expression ranking uisng the network gene
 DE.ranking <- function(exps,GeneList,factortab,sample.l, exps.file = FALSE){
@@ -694,23 +1126,16 @@ sub.parallel.network.local <- function (file,netfile,tmp) {
 }
 
 ## calculation of correlation for matrix creating adjacency table
-NetCor <- function(file,method = c("MINE","GCC", "PCC", "SCC", "KCC"),nbperm,cpu) {
+NetCor <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,cpu) {
   tab <- read.table(file)
   tab <-as.matrix(tab)
-  if (method == "MINE") {
-    x <- RMINE(tab,nbperm)
-    write.table(x$corMatrix,paste(file,"_CorrM.txt", sep =""), sep = "\t", row.names = TRUE, col.names=NA,quote =FALSE)
-    write.table(x$pvalueMatrix, paste(file,"_PvalM.txt", sep=""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
-  } 
-  else {
-    x <- Rscorr(tab,method = method,nbperm,1)
-    write.table(x$corMatrix,paste(file,"_CorrM.txt", sep =""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
-    write.table(x$pvalueMatrix, paste(file,"_PvalM.txt", sep=""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
-  }
+  x <- Rscorr(tab,method = method,nbperm,1)
+  write.table(x$corMatrix,paste(file,"_CorrM.txt", sep =""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
+  write.table(x$pvalueMatrix, paste(file,"_PvalM.txt", sep=""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
 }
 
 ## calculation of correlation for sub table of pairs obtained with sub.parallel.matrix
-NetCor.pair <- function(file,method = c("MINE","GCC", "PCC", "SCC", "KCC"),nbperm,subfile) {
+NetCor.pair <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,subfile) {
   tab <- read.table(file,comment.char = "")   #add comment.char = "" to fasten the process
   mat <-as.matrix(tab)
   zi <- read.table(subfile)
@@ -753,71 +1178,14 @@ NetCor.pair <- function(file,method = c("MINE","GCC", "PCC", "SCC", "KCC"),nbper
   }
 }
 
-
-## correlation rsgcc
-Rscorr <- function (mat, method = c("GCC", "PCC", "SCC", "KCC"), nbperm, cpu) {
-  x <- corr.gcc( mat, cormethod = method, cpus = 1, style = "all.pairs", sigmethod = "one.sided",pernum = nbperm, output = "matrix")
-  return(x)
-}
-
-## probalistic correlation
-RMINE <- function (mat,nbperm) {
-  suppressWarnings(suppressPackageStartupMessages(require(minerva)))
-  #nbperm= 10000
-  # extract all row with a variance inferior to 1e-05 as mine not working with variance equal to 0
-  tmat <- t(mat)
-  tmat  <- tmat[apply(tmat,1,var) > 1e-05,apply(tmat,2,var) > 1e-05]
-  m <- mine(tmat, alpha = 0.7)$MIC
-  rownames(m) <- rownames(mat)
-  colnames(m) <- rownames(mat)
-  # Create an empty table for p-value with same dimension than m with value = 1
-  pm <- matrix(1/nbperm, ncol = length(colnames(m)), nrow = length(rownames(m)))
-  rownames(pm) <- rownames(mat)
-  colnames(pm) <- rownames(mat)    
-  # Combine all vector row in table
-  z <- as.data.frame(combn(rownames(mat), 2))
-  for ( i in 1:length(colnames(z))) {
-    rowx <- as.character(z[1,i])
-    rowy <- as.character(z[2,i])
-    #print(paste(i,z[1,i],z[2,i],sep =" "))
-    x <- as.numeric(mat[rowx,])
-    y <- as.numeric(mat[rowy,])
-    perm.values = numeric(nbperm)
-    for (k in 1:nbperm) {
-      # loop for permutations tests
-      rx <- sample(x, length(x),replace=FALSE)
-      ry <- sample(y, length(y),replace=FALSE)        
-      # record the value of the test
-      perm.values[k] = mine(cbind(rx,ry))$MIC[1,2] 
-    }
-    
-    real.test <- m[rowx,rowy] 
-    #print(paste(i,real.test,sep =" "))   
-    perm.values = abs(perm.values)
-    vals = c(real.test,perm.values)
-    rank.vals = sort(vals, decreasing = TRUE)
-    pval <- mean(which(rank.vals == real.test))/length(perm.values) 
-    pm[rowx,rowy] <- pval
-    pm[rowy,rowx] <- pval
-    #if (pval < 0.05){
-    #    hist(perm.values,col = "lightblue",border ="lightgrey", breaks = 1000, xlim=c(0,1))
-    #    curve(dnorm(x, mean=mean(perm.values), sd=sd(perm.values)), add=TRUE, col="darkblue", lwd=2)
-    #    abline(v = real.test, col = "red", lwd = 2)
-    #}
-  }
-  
-  return(list(corMatrix = m, pvalueMatrix = pm))
-}
-
 #affinity table generation
 
 corr.gcc <- function (GEMatrix, cpus = 1, 
-                      cormethod = c("GCC", "PCC", "SCC", "KCC", "BiWt"), 
+                      cormethod = c("GCC", "PCC", "SCC", "KCC"), 
                       style = c("all.pairs", "pairs.between", 
                                 "adjacent.pairs", "one.pair"), 
                       var1.id = NA, var2.id = NA, pernum = 0, 
-                      sigmethod = c("two.sided","one.sided"), output = c("matrix", "paired")) 
-{
+                      sigmethod = c("two.sided","one.sided"), output = c("matrix", "paired")) {
   if (cpus > 1) {
     suppressWarnings(suppressPackageStartupMessages(require(snowfall)))
   }
@@ -961,10 +1329,9 @@ corr.gcc <- function (GEMatrix, cpus = 1,
 }
 ##
 cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"), 
-                      cormethod = c("GCC", "PCC", "SCC", "KCC", "BiWt"), 
+                      cormethod = c("GCC", "PCC", "SCC", "KCC"), 
                       pernum = 0, 
-                      sigmethod = c("two.sided","one.sided")) 
-{
+                      sigmethod = c("two.sided","one.sided")) {
   onegcc <- function(x, y) {
     getrank <- function(datamatrix) {
       if (dim(datamatrix)[1] != 2) {
@@ -1097,12 +1464,13 @@ cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"),
     if (cormethod == "GCC") {
       ## TO MODIFY #######  return(list(gcc.rankx = realcor$gcc.rankx, gcc.ranky = realcor$gcc.ranky, 
       ## TO MODIFY #######             gcc.rankx.pvalue = getpvalue(pGCCMatrix[, 1], 
-      ## TO MODIFY #######                                          pernum, realcor$gcc.rankx, sigmethod), gcc.ranky.pvalue = getpvalue(pGCCMatrix[, 
-                                                                                                                              2], pernum, realcor$gcc.ranky, sigmethod)))
+      ## TO MODIFY #######                                          pernum, realcor$gcc.rankx, sigmethod), 
+                                                                    gcc.ranky.pvalue = getpvalue(pGCCMatrix[,2], 
+                                                                                                 pernum, realcor$gcc.ranky, 
+                                                                                                 sigmethod)))
     }
     else {
-      return(list(cor = realcor, pvalue = getpvalue(pGCCMatrix[, 
-                                                               1], pernum, realcor, sigmethod)))
+      return(list(cor = realcor, pvalue = getpvalue(pGCCMatrix[,1], pernum, realcor, sigmethod)))
     }
   }
 }
