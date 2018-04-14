@@ -136,8 +136,30 @@ Necorr <- function(network.file, description.file, factor.file,
   
   suppressWarnings(suppressPackageStartupMessages(require(foreach)))
   suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
+  files.list <- paste0(mainDir,"/",Filelist)
+  print(files.list)
+  files <- read.table(files.list)
+  condnb <- nrow(files)
   
-  
+  ## Loop to do the anlysis per condition defined in the first row of the expression data
+  #CondNB <-1  ### test of the code without loop
+  for (CondNB in 1:condnb ){
+    fileexp <- as.character(files[CondNB,1])
+    x.exp <- as.matrix(read.table(paste0(mainDir,"/",fileexp)))
+    
+    end.time <- Sys.time()
+    time.taken <- end.time - start.time
+    print(time.taken)
+    
+    ###------------------------------------------------------------------------------------------------------------------------
+    print("### II - Analysis of the co-expression file and p-value sums")
+    #start.time <- Sys.time()
+    ###------------------------------------------------------------------------------------------------------------------------
+    int.sig <- bigcorGCC(x.exp, net = network.int, nsockets = NSockets,
+                         methods= CoorMetric, output = "paired", sigmethod = "two.sided", 
+                         pernum = permutation , verbose = FALSE, cpus = NSockets, type = incrtype)
+    
+  }
 }
 #################### TO merge with preceding function
 necorr <- function(expsion , network, condition,
@@ -344,78 +366,27 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
   }
 }
 
-bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KCC","BiWt"),
-                      sigmethod = c("two.sided", "one.sided"), output = c("matrix","paired"),
-                      nblocks = 10, verbose = TRUE, cpus = 1, type = c("only", "all"), pernum = 0, ...)
-{
-  #suppressWarnings(suppressPackageStartupMessages(library(rsgcc)))
-  #if (type == "all"){
-  #	  suppressWarnings(suppressPackageStartupMessages(library(ff)))
-  #	  x <- t(as.matrix(x))
-  #	  NCOL <- ncol(x)
-  #
-  #	  ## test if ncol(x) %% nblocks gives remainder 0
-  #	  if (NCOL %% nblocks != 0) {stop("Choose different 'nblocks' so that ncol(x) %% nblocks = 0!")}
-  #
-  #	  ## preallocate square matrix of dimension
-  #	  ## ncol(x) in 'ff' single format
-  #
-  #	  if(output == "matrix"){
-  #	 	corMAT <- ff(vmode = "single", dim = c(NCOL, NCOL))
-  # 	 	}
-  #     else if (output == "paired") {
-  #     	corMAT <- c()
-  #     }
-  #	 ## split column numbers into 'nblocks' groups
-  #	 SPLIT <- split(1:NCOL, rep(1:nblocks, each = NCOL/nblocks))
-  #
-  #	 ## create all unique combinations of blocks
-  #	 COMBS <- expand.grid(1:length(SPLIT), 1:length(SPLIT))
-  #	 COMBS <- t(apply(COMBS, 1, sort))
-  #	 COMBS <- unique(COMBS)
-  #
-  #	 ## iterate through each block combination, calculate correlation matrix
-  #	 ## between blocks and store them in the preallocated matrix on both
-  #	 ## symmetric sides of the diagonal
-  #	 for (i in 1:nrow(COMBS)) {
-  #	   COMB <- COMBS[i, ]
-  #    G1 <- SPLIT[[COMB[1]]]
-  #	   G2 <- SPLIT[[COMB[2]]]
-  #	   if (verbose) cat("Block", COMB[1], "with Block", COMB[2], "\n")
-  #	   flush.console()
-  #	   if(output == "matrix"){
-  #	     COR <- (cor.matrix.NECorr(t(x), var1.id = G1, var2.id = G2, sigmethod = sigmethod, cormethod = methods, pernum #= pernum, output = output, cpus = cpus, style = "pairs.between"))$corMatrix
-  #	     #COR <- cor(G1,G2,...)
-  #	     corMAT[G1, G2] <- COR
-  #	     corMAT[G2, G1] <- t(COR)
-  #	    }else{
-  #	      COR <- cor.matrix.NECorr(t(x), var1.id = G1, var2.id = G2, sigmethod = sigmethod, cormethod = methods, output = output, pernum = pernum, cpus = 1, style = "pairs.between")
-  #	      corMAT = rbind(corMAT,COR)
-  #	    }
-  #	    gc()
-  #	    COR <- NULL
-  #	   }
-  #	}
-  if (type == "only" && output == "paired"){
-    suppressWarnings(suppressPackageStartupMessages(require(foreach)))
-    suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
-    nsockets <- as.numeric(nsockets)
-    cl <- makeCluster(nsockets, type="SOCK")
-    registerDoSNOW(cl)
-    corMAT <- c()
-    Nrow = nrow(net)
-    fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
-    matnet <- split(net,fc)
-    #corMAT <-foreach(i=1:nblocks, .combine='rbind') %do% {
-    corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair','gcc.corfinal'))%dopar%{
-      netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
-      G1 <- as.numeric(as.vector(netindexed[,1]))
-      G2 <- as.numeric(as.vector(netindexed[,2]))
-      cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods, pernum=pernum, output=output, cpus=cpus, style="pairs.only")
+bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KCC"),
+                      sigmethod = c("two.sided", "one.sided"),
+                      nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
+  suppressWarnings(suppressPackageStartupMessages(require(foreach)))
+  suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
+  nsockets <- as.numeric(nsockets)
+  cl <- makeCluster(nsockets, type="SOCK")
+  registerDoSNOW(cl)
+  corMAT <- c()
+  Nrow = nrow(net)
+  fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
+  matnet <- split(net,fc)
+  #corMAT <-foreach(i=1:nblocks, .combine='rbind') %do% {
+  corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair','gcc.corfinal'))%dopar%{
+    netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
+    G1 <- as.numeric(as.vector(netindexed[,1]))
+    G2 <- as.numeric(as.vector(netindexed[,2]))
+    cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods, 
+                      pernum=pernum, output=output, cpus=cpus, style="pairs.only")
     }
-    stopCluster(cl)
-  }
-  #stopCluster()
+  stopCluster(cl)
   return(corMAT)
   
 }
@@ -989,9 +960,10 @@ corr.gcc <- function (GEMatrix, cpus = 1,
   }
 }
 ##
-cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"), cormethod = c("GCC", 
-                                                                                  "PCC", "SCC", "KCC", "BiWt"), pernum = 0, sigmethod = c("two.sided", 
-                                                                                                                                          "one.sided")) 
+cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"), 
+                      cormethod = c("GCC", "PCC", "SCC", "KCC", "BiWt"), 
+                      pernum = 0, 
+                      sigmethod = c("two.sided","one.sided")) 
 {
   onegcc <- function(x, y) {
     getrank <- function(datamatrix) {
@@ -1135,24 +1107,3 @@ cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"), cormethod = 
   }
 }
 
-##
-gcc.corfinal <- function (gcccor) 
-{
-  if (is.numeric(gcccor$gcc.rankx.pvalue) & is.numeric(gcccor$gcc.ranky.pvalue)) {
-    fpvalue <- gcccor$gcc.rankx.pvalue
-    fgcc <- gcccor$gcc.rankx
-    if (gcccor$gcc.ranky.pvalue < fpvalue) {
-      fpvalue <- gcccor$gcc.ranky.pvalue
-      fgcc <- gcccor$gcc.ranky
-    }
-  }
-  else {
-    fpvalue <- NA
-    x <- c(gcccor$gcc.rankx, gcccor$gcc.ranky)
-    fgcc <- x[which(abs(x) == max(abs(x)))]
-    if (length(fgcc) > 1) {
-      fgcc <- fgcc[1]
-    }
-  }
-  return(list(gcc.fcor = fgcc, gcc.fpvalue = fpvalue))
-}
