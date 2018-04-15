@@ -17,7 +17,7 @@
 # variable $14: nb
 # variable $15: script
 
-Necorr <- function(network.file, description.file, factor.file, 
+Necorr <- function(network.file, expression, description.file, condition,
                    metadata, name, 
                    Filelist #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
@@ -26,10 +26,11 @@ Necorr <- function(network.file, description.file, factor.file,
                    type = "gene",
                    dirtmp="./results/tmp", dirout = './results'){
   #' @author Christophe Liseron-Monfils
-  #' @param expsion Expression file in log2 (ratio expression) with row: gene,
+  #' @param expression Expression file in log2 (ratio expression) with row: gene,
   #' first column: type of sample,second column: sample names
-  #' @param network Molecular network file with source in the first column, targets in
+  #' @param network.file Molecular network file with source in the first column, targets in
   #'  the second column
+  #' @param description.file 
   #' @param condition Condition from expression to study the network co-expression
   #' correlation
   #' @param type Omics comparative expression type: protein or gene
@@ -74,20 +75,18 @@ Necorr <- function(network.file, description.file, factor.file,
   # load file and options
   # read network file
   network.int <- read.delim(network.file, sep ="\t", header = T,fileEncoding="latin1")
-  #
-  factortab <- read.table(metadata,header = T) #factor.file
+  # Condition experiment and/or tissue
+  factortab <- read.table(metadata,header = T) #factor.file #condition <- "Radial"
   # Description file name with gene name and annotations
   Desc <-  read.csv(description.file,header=T, row.name=1) #description.file <- "1.Ath.GeneDesc.csv"
-  # Condition experiment and/or tissue
-  factortab <-  read.table(factor.file,header = T) #condition <- "Radial"
   # Create the subdirectory for the fianl results
   # need to see if all these tables are still useful??
-  subDirTS = paste0("results/",condition,"/4_TS_file/")
-  subDirGraph = paste0("results/",condition,"/6_TS_graph/")
-  subDirFile = paste0("results/",condition,"/7_gene_ranking_per_condition/")
-  dir.create(file.path(mainDir, subDirTS), showWarnings = FALSE)
-  dir.create(file.path(mainDir, subDirGraph), showWarnings = FALSE)
-  dir.create(file.path(mainDir, subDirFile), showWarnings = FALSE)
+  subDirTS = paste0(dirout, "/",condition,"/4_TS_file/")
+  subDirGraph = paste0(dirout, "/",condition,"/6_TS_graph/")
+  subDirFile = paste0(dirout, "/",condition,"/7_gene_ranking_per_condition/")
+  dir.create(file.path(dirout, subDirTS), showWarnings = FALSE)
+  dir.create(file.path(dirout, subDirGraph), showWarnings = FALSE)
+  dir.create(file.path(dirout, subDirFile), showWarnings = FALSE)
   #___________________ MAIN SCRIPT ___________________________________
   
   # calculate the weight for each parameter
@@ -123,7 +122,7 @@ Necorr <- function(network.file, description.file, factor.file,
   # the tissue/stress-selectivity of each sample type
   # and order these tissue/stress-selective genes
   
-  sample.names <- unique(factortab$Treatment)
+  sample.names <- unique(factortab$Treatment) 
   coexpression.cond <- unique(factortab$Condition)
   xcol <-c()
   treatment.f <- factor()
@@ -146,7 +145,7 @@ Necorr <- function(network.file, description.file, factor.file,
   #start.time <- Sys.time()
   # Generate all the topology statistics using the function NetTopology
   netstat <- NetTopology(network.int)
-  write.csv(netstat,paste0(mainDir,"/results/",condition,"/5_",netname,"_NetStat.csv"))
+  write.csv(netstat,paste0(dirout,"/",condition,"/5_",netname,"_NetStat.csv"))
   Genelist <- rownames(netstat)
   BetwC <- structure(netstat$BetweennessCentrality, names=Genelist)  #3 betweeness
   Conn <- structure(netstat$EdgeCount, names=Genelist) # 4 connectivity
@@ -175,7 +174,7 @@ Necorr <- function(network.file, description.file, factor.file,
   
   suppressWarnings(suppressPackageStartupMessages(require(foreach)))
   suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
-  files.list <- paste0(mainDir,"/",Filelist)
+  files.list <- paste0(dirout,"/",Filelist)
   print(files.list)
   files <- read.table(files.list)
   condnb <- nrow(files)
@@ -184,7 +183,7 @@ Necorr <- function(network.file, description.file, factor.file,
   #CondNB <-1  ### test of the code without loop
   for (CondNB in 1:condnb ){
     fileexp <- as.character(files[CondNB,1])
-    x.exp <- as.matrix(read.table(paste0(mainDir,"/",fileexp)))
+    x.exp <- as.matrix(read.table(paste0(dirout,"/",fileexp)))
     
     end.time <- Sys.time()
     time.taken <- end.time - start.time
@@ -202,7 +201,7 @@ Necorr <- function(network.file, description.file, factor.file,
     filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
     int.sig.file <- int.sig
     colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
-    write.csv(int.sig.file, paste0(mainDir,"/",filecoexp))
+    write.csv(int.sig.file, paste0(dirout,"/",filecoexp))
     
     # create a function to generate a continuous color palette
     rbPal <- colorRampPalette(c('yellow','blue'))
@@ -651,7 +650,10 @@ Necorr <- function(network.file, description.file, factor.file,
         #
         # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
         pdf(file = title, width = 10, height = 10)
-        dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , vertex.shape="sphere", vertex.size = vsize, vertex.label = vlabel, edge.color = "grey",edge.arrow.size = 0.3, vertex.color = vcolors,vertex.frame.color = vcolors, newpage = F)
+        dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , 
+                     vertex.shape="sphere", vertex.size = vsize, 
+                     vertex.label = vlabel, edge.color = "grey",
+                     edge.arrow.size = 0.3, vertex.color = vcolors,vertex.frame.color = vcolors, newpage = F)
         dev.off()
       }
     }
@@ -708,14 +710,14 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
                                var1.id = NA, var2.id = NA, 
                                pernum = 0, 
                                sigmethod = c("two.sided","one.sided"), 
-                               output = c("matrix","paired")) {
+                               output = c("matrix","paired")){
   if (cpus > 1) {
     #   library(snowfall)
   }
-  if (pernum == 0) {
+  if (pernum == 0){
     sigmethod <- "two.sided"
   }
-  if (!is.matrix(GEMatrix) | !is.numeric(GEMatrix)) {
+  if (!is.matrix(GEMatrix) | !is.numeric(GEMatrix)){
     stop("Error: GEMatrix in cor.matrix function is not matrix or Error: GEMatrix is not numeric")
   }
   if (length(rownames(GEMatrix)) == 0) {
@@ -734,7 +736,7 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
       stop("Error:var1.id and var2.id should be numeric vector")
     }
   }
-  if( style =="pairs.only"){
+  if(style == "pairs.only"){
     taskmatrix <- cbind(var1.id, var2.id)
   }
   if(style == "pairs.between") {
@@ -746,7 +748,7 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
   results <- apply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix,
                    rowORcol = "row", cormethod = cormethod, pernum = pernum, 
                    sigmethod = sigmethod)
-  if (output == "paired") {
+  if(output == "paired"){
     kk <- 0
     corpvalueMatrix <- matrix(NA, nrow = dim(taskmatrix)[1], ncol = 4)
     for (i in 1:dim(taskmatrix)[1]) {
@@ -766,7 +768,7 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
       }
     }
     return(corpvalueMatrix[1:kk, ])
-  } else {
+  }else{
     UniqueRow <- sort(unique(taskmatrix[, 1]))
     UniqueCol <- sort(unique(taskmatrix[, 2]))
     corMatrix <- matrix(0, nrow = length(UniqueRow), ncol = length(UniqueCol))
@@ -797,7 +799,6 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
 bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KCC"),
                       sigmethod = c("two.sided", "one.sided"),
                       nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
-
   corMAT <- c()
   if (methods == "GCC"){
     #### NEW GINI CORRLATION CALCULATION
@@ -812,7 +813,7 @@ bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KC
     Nrow = nrow(net)
     fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
     matnet <- split(net,fc)
-    corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair','gcc.corfinal'))%dopar%{
+    corMAT<-foreach(j=1:nblocks, .combine='rbind', .export=c('indexing.network','cor.matrix.NECorr','cor.pair'))%dopar%{
       netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
       G1 <- as.numeric(as.vector(netindexed[,1]))
       G2 <- as.numeric(as.vector(netindexed[,2]))
@@ -820,10 +821,8 @@ bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KC
                         pernum=pernum, output="paired", cpus=cpus, style="pairs.only")
     }
     stopCluster(cl)
-    
   }
-   return(corMAT)
-  
+  return(corMAT)
 }
 
 expand.grid.unique <- function(x, y, include.equals=FALSE){
@@ -900,8 +899,7 @@ DE.ranking <- function(exps,GeneList,factortab,sample.l, exps.file = FALSE){
 }
 
 # network topology statistics using igraph methods
-NetTopology <-function(network)
-{
+NetTopology <-function(network){
   #the network should be a list of interactions space by a line
   suppressWarnings(suppressPackageStartupMessages(require(igraph)))
   # script partly adapted from https://gist.github.com/mhawksey/1682306
@@ -945,8 +943,7 @@ NetTopology <-function(network)
 }
 
 # tissue selectivity from Van Deun 2009
-IUT<-function(DATA,nrreplics,target,updown,alpha,mc)
-{
+IUT<-function(DATA,nrreplics,target,updown,alpha,mc){
   nrprobesets<-nrow(DATA)
   nrarrays<-ncol(DATA)
   nrconditions<-length(nrreplics)
@@ -1000,35 +997,10 @@ TSR = function(x) sum(numeratorTSR(x))/denominator(x)
 # rescaling data in a range between 0 to 1
 ScalN = function(x) (x - min(x))/(max(x) - min(x))
 
-
 # combine p-values Fisher method to have overall importance of 
 # this node in the studied tissue (using code from Michael Love code) 
 # (http://mikelove.wordpress.com/2012/03/12/combining-p-values-fishers-method-sum-of-p-values-binomial/)
 fishersMethod = function(x) pchisq(-2 * sum(log(x)),df=2*length(x),lower=FALSE) 
-
-Aff.table <- function (type, species, file_ddG,file_misM,file_ini) {
-  # create 3 table for each of the factor
-  ddG <- as.matrix(read.table(file_ddG))
-  misM <- as.matrix(read.table(file_misM))
-  InibT <- as.matrix(read.table(file_ini))
-  
-  # use this table to modify the value in the affinity table
-  tab <- 100*((((((2^(misM+0.5))*exp(-2))/factorial(misM+0.5))+0.7120482)*.3)+(1/exp((max(ddG)/100)*ddG)*.7))*(InibT/10)
-  tab[tab < 0.1] <- 0
-  write.table(tab,paste(species,"_affinity_",type,".txt", sep =""), sep = "\t", row.names = TRUE, col.names=NA,quote =FALSE)
-}
-
-Aff.table.v3 <- function (type, species, file_ddG,file_misM,file_ini) {
-  # create 3 table for each of the factor
-  ddG <- as.matrix(read.table(file_ddG))
-  misM <- as.matrix(read.table(file_misM))
-  InibT <- as.matrix(read.table(file_ini))
-  
-  # use this table to modify the value in the affinity table
-  tab <- 10*((((((2^(misM+0.5))*exp(-2))/factorial(misM+0.5))+0.7120482)*.5) + (1/exp((max(ddG)/100)*ddG)*.5))
-  tab[tab ==  min(tab)] <- 0
-  write.table(tab,paste(species,"_affinity_",type,".txt", sep =""), sep = "\t", row.names = TRUE, col.names=NA,quote =FALSE)
-}
 
 ## calculation of correlation for matrix creating adjacency table
 NetCor <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,cpu) {
