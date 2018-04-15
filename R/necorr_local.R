@@ -19,8 +19,6 @@
 
 Necorr <- function(network.file, description.file, factor.file, 
                    metadata, name, 
-                   permutation = 1000,
-                   CoorMetric= 'GCC'
                    Filelist #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",
@@ -197,7 +195,7 @@ Necorr <- function(network.file, description.file, factor.file,
     #start.time <- Sys.time()
     ###------------------------------------------------------------------------------------------------------------------------
     int.sig <- bigcorGCC(x.exp, net = network.int, nsockets = NSockets,
-                         methods= CoorMetric, output = "paired", sigmethod = "two.sided", 
+                         methods= method, output = "paired", sigmethod = "two.sided", 
                          pernum = permutation , verbose = FALSE, cpus = NSockets, type = incrtype)
     
     
@@ -801,7 +799,7 @@ bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KC
                       nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
 
   corMAT <- c()
-  if (methods = "GCC"){
+  if (methods == "GCC"){
     #### NEW GINI CORRLATION CALCULATION
     corMAT <- gini(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6) 
   }else{
@@ -1032,99 +1030,6 @@ Aff.table.v3 <- function (type, species, file_ddG,file_misM,file_ini) {
   write.table(tab,paste(species,"_affinity_",type,".txt", sep =""), sep = "\t", row.names = TRUE, col.names=NA,quote =FALSE)
 }
 
-
-## subdivision of file in subfile to parallelize using qsub
-## all combinations
-sub.parallel.matrix <- function (file,tmp) {
-  tab <- read.table(file)
-  mat <-as.matrix(tab)
-  d = length(rownames(mat))
-  t <- combn(1:d,2)
-  tt <- as.data.frame(t(t))
-  # number of files increasing with nber of rows and combinations (100 genes to 4000)
-  # setting number of files to 2000 for 4000 genes
-  # x <- c(9900,15996000); y <- c(10,2000); lm(y~x)
-  nb = (4.977e-04)*length(rownames(tt)) + 5.0726459
-  nb <- ceiling(nb)
-  if (nb >= 100){ nb = 100 }
-  #print(nb)
-  z <- split (tt,c(rep(1:(nb-1), each = floor(length(rownames(tt))/nb)),
-                   rep(nb,length(rownames(tt)) - ((nb-1)*floor(length(rownames(tt))/nb)) )
-  ))
-  # print each combination in number of data.frames from z
-  for (i in 1:nb) {
-    #write.table(z[[i]], paste("tmp/sub_tab",i, sep =""), quote = FALSE)
-    write.table(z[[i]], paste(tmp,"/",file,".",i, sep =""), quote = FALSE, row.names = FALSE,col.names=FALSE)
-  }
-  return(nb)     
-}
-
-## subdivision of file in subfile to parallelize using qsub
-## network combinations only
-sub.parallel.network <- function (file,netfile,tmp) {
-  tab <- read.table(file)
-  network <- read.table(netfile)
-  network <- network[-1,]
-  # create table with all the gene in network 
-  t <- as.data.frame(unique(apply(network,1, function(x) c(x[1],x[3]))))
-  tt1 <- t(t)
-  #replace the gene name by their index in expression table
-  #which(rownames(tab) == tt[2,1])
-  indexing <- function (x,y) {
-    if ( length(which(rownames(y) == x[1])) != 0 && 
-         length(which(rownames(y) == x[2])) != 0) {
-      c(which(rownames(y) == x[1]),which(rownames(y) == x[2]))
-    }
-  }
-  tt <- as.data.frame(do.call(rbind,apply(tt1, 1, indexing,tab)))
-  nb = (4.977e-04)*length(rownames(tt)) + 5.0726459
-  nb <- ceiling(nb)
-  #print(nb)
-  z <- split (tt,c(rep(1:(nb-1), each = floor(length(rownames(tt))/nb)),
-                   rep(nb,length(rownames(tt)) - ((nb-1)*floor(length(rownames(tt))/nb)) )
-  ))
-  # print each combination in number of data.frames from z
-  for (i in 1:nb) {
-    #write.table(z[[i]], paste("tmp/sub_tab",i, sep =""), quote = FALSE)
-    write.table(z[[i]], paste(tmp,"/",file,".",i, sep =""), quote = FALSE, row.names = FALSE,col.names=FALSE)
-  }
-  return(nb)     
-}
-
-## local run of the network under the form of interactionlist
-sub.parallel.network.local <- function (file,netfile,tmp) {
-  tab <- read.table(file)
-  network <- read.table(netfile)
-  network <- network[-1,]
-  # create table with all the gene in network 
-  t <- as.data.frame(unique(apply(network,1, function(x) c(x[1],x[3]))))
-  tt1 <- t(t)
-  #replace the gene name by their index in expression table
-  #which(rownames(tab) == tt[2,1])
-  indexing <- function (x,y) {
-    if ( length(which(rownames(y) == x[1])) != 0 && 
-         length(which(rownames(y) == x[2])) != 0) {
-      c(which(rownames(y) == x[1]),which(rownames(y) == x[2]))
-    }
-  }
-  ns <- apply(tt1, 1, indexing,tab)
-  if(typeof(ns) == "integer"){ 
-    ns = as.data.frame(ns)
-  }
-  tt <- as.data.frame(do.call(rbind,ns))
-  nb = 6
-  #print(nb)
-  z <- split (tt,c(rep(1:(nb-1), each = floor(length(rownames(tt))/nb)),
-                   rep(nb,length(rownames(tt)) - ((nb-1)*floor(length(rownames(tt))/nb)) )
-  ))
-  # print each combination in number of data.frames from z
-  for (i in 1:nb) {
-    #write.table(z[[i]], paste("tmp/sub_tab",i, sep =""), quote = FALSE)
-    write.table(z[[i]], paste("./",tmp,"/",file,".",i, sep =""), quote = FALSE, row.names = FALSE,col.names=FALSE)
-  }
-  return(nb)     
-}
-
 ## calculation of correlation for matrix creating adjacency table
 NetCor <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,cpu) {
   tab <- read.table(file)
@@ -1132,200 +1037,6 @@ NetCor <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,cpu) {
   x <- Rscorr(tab,method = method,nbperm,1)
   write.table(x$corMatrix,paste(file,"_CorrM.txt", sep =""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
   write.table(x$pvalueMatrix, paste(file,"_PvalM.txt", sep=""), sep = "\t", row.names =TRUE, col.names=NA,quote =FALSE)
-}
-
-## calculation of correlation for sub table of pairs obtained with sub.parallel.matrix
-NetCor.pair <- function(file,method = c("GCC", "PCC", "SCC", "KCC"),nbperm,subfile) {
-  tab <- read.table(file,comment.char = "")   #add comment.char = "" to fasten the process
-  mat <-as.matrix(tab)
-  zi <- read.table(subfile)
-  res <- c()
-  if (method == "MINE") {
-    suppressWarnings(suppressPackageStartupMessages(require(minerva)))
-    for (i in 1:length(rownames(zi))) {
-      # MIC score calculation
-      cor.value <- mine(mat[zi[i,1],],mat[zi[i,2],], alpha=0.6)$MIC
-      # p-value calculation
-      rowx <- rownames(mat)[zi[i,1]]
-      rowy <- rownames(mat)[zi[i,2]]
-      x <- as.numeric(mat[rowx,])
-      y <- as.numeric(mat[rowy,])
-      perm.values = numeric(nbperm)
-      for (k in 1:nbperm) {
-        # loop for permutations tests
-        rx <- sample(x, length(x),replace=FALSE)
-        ry <- sample(y, length(y),replace=FALSE)        
-        # record the value of the test
-        perm.values[k] = mine(rx,ry)$MIC 
-      }   
-      perm.values = abs(perm.values)
-      vals = c(cor.value,perm.values)
-      rank.vals = sort(vals, decreasing = TRUE)
-      pval <- mean(which(rank.vals == cor.value))/length(vals)
-      content <- c(rowx,rowy,cor.value,pval)
-      res <- rbind(res,content)
-    }
-    write.table(res,paste(subfile,"_CorrM_PvalM", sep =""), sep = "\t", row.names = FALSE, col.names=FALSE,quote =FALSE)
-  } 
-  else {
-    for (i in 1:length(rownames(zi))) {
-      content <- corr.gcc(mat,cormethod=method,sigmethod="one.sided", style="one.pair", var1.id = zi[i,1], var2.id = zi[i,2], output="paired", pernum = nbperm)
-      content <- as.vector(content)
-      res <- rbind(res,content)
-    }
-    #print(res)
-    write.table(res,paste(subfile,"_CorrM_PvalM", sep =""), sep = "\t", row.names =FALSE, col.names=FALSE,quote =FALSE)
-  }
-}
-
-#affinity table generation
-
-corr.gcc <- function (GEMatrix, cpus = 1, 
-                      cormethod = c("GCC", "PCC", "SCC", "KCC"), 
-                      style = c("all.pairs", "pairs.between", 
-                                "adjacent.pairs", "one.pair"), 
-                      var1.id = NA, var2.id = NA, pernum = 0, 
-                      sigmethod = c("two.sided","one.sided"), output = c("matrix", "paired")) {
-  if (cpus > 1) {
-    suppressWarnings(suppressPackageStartupMessages(require(snowfall)))
-  }
-  if (length(cormethod) > 1) {
-    cat("Warning: one correlation method should be specified. Default:GCC")
-  }
-  if (length(style) > 1) {
-    cat("Warning: one style should be specified. Default: all.pairs")
-  }
-  if (pernum > 0 & length(sigmethod) > 1) {
-    sigmethod = "two.sided"
-  }
-  if (pernum == 0) {
-    sigmethod <- "two.sided"
-  }
-  if (!is.matrix(GEMatrix)) {
-    stop("Error: GEMatrix in cor.matrix function is not matrix")
-  }
-  if (!is.numeric(GEMatrix)) {
-    stop("Error: GEMatrix is not numeric")
-  }
-  if (length(rownames(GEMatrix)) == 0) {
-    rownames(GEMatrix) <- seq(1, dim(GEMatrix)[1], by = 1)
-  }
-  VariableNum <- nrow(GEMatrix)
-  SampleSize <- ncol(GEMatrix)
-  if (VariableNum <= 1 || SampleSize <= 1) {
-    stop("Error:the number of variable is less than 2, or the number of observation is less than 2 ")
-  }
-  if (style == "one.pair") {
-    if (length(var1.id) != 1 || length(var2.id) != 1 || is.na(var1.id) == 
-        TRUE || is.na(var2.id) == TRUE) {
-      stop("Error: Not define the var1.id or var1.id")
-    }
-  }
-  if (style == "adjacent.pairs") {
-    var1.id <- seq(1, (VariableNum - 1), by = 1)
-    var2.id <- var1.id + 1
-  }
-  if (style == "one.pair" || style == "adjacent.pairs") {
-    if (length(var1.id) != length(var2.id)) {
-      stop("Error: var1.id and var2.id should be vectors with the same length")
-    }
-    taskmatrix <- matrix(c(var1.id, var2.id), ncol = 2)
-  }
-  if (style == "pairs.between") {
-    if (length(which(is.na(var1.id) == TRUE)) > 0 | length(which(is.na(var1.id) == 
-                                                                 TRUE)) > 0) {
-      stop("Error: no variable IDs are given")
-    }
-    if (length(which((var1.id != var2.id) == TRUE)) > 0) {
-      stop("Error: var1.id should be the same with var2.id for the pairs.between style")
-    }
-    if (length(which(is.numeric(var1.id) == FALSE)) > 0 | 
-        length(which(is.numeric(var2.id) == FALSE)) > 0) {
-      stop("Error:var1.id and var2.id should be numeric vector")
-    }
-  }
-  if (style == "all.pairs") {
-    var1.id <- seq(1, dim(GEMatrix)[1], by = 1)
-    var2.id <- var1.id
-  }
-  if (style == "pairs.between" || style == "all.pairs") {
-    CurLen <- length(var1.id)
-    taskmatrix <- matrix(0, nrow = length(var1.id) * (length(var1.id) + 
-                                                        1)/2, ncol = 2)
-    kk = 0
-    for (i in 1:length(var1.id)) {
-      j <- 1
-      while (j <= i) {
-        kk <- kk + 1
-        taskmatrix[kk, ] <- c(i, j)
-        j <- j + 1
-      }
-    }
-  }
-  if (cpus == 1 | cormethod == "BiWt") {
-    results <- apply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix, 
-                     rowORcol = "row", cormethod = cormethod, pernum = pernum, 
-                     sigmethod = sigmethod)
-  }
-  else {
-    sfInit(parallel = TRUE, cpus = cpus)
-    #print(sprintf("%s cpus to be used", sfCpus()))
-    results <- sfApply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix, 
-                       rowORcol = "row", cormethod = cormethod, pernum = pernum, 
-                       sigmethod = sigmethod)
-    sfStop()
-  }
-  if (output == "paired") {
-    kk <- 0
-    corpvalueMatrix <- matrix(NA, nrow = dim(taskmatrix)[1], 
-                              ncol = 4)
-    for (i in 1:dim(taskmatrix)[1]) {
-      if (taskmatrix[i, 1] == taskmatrix[i, 2]) 
-        next
-      kk <- kk + 1
-      corpvalueMatrix[kk, 1:2] <- rownames(GEMatrix)[taskmatrix[i, 
-                                                                ]]
-      if (cormethod == "GCC") {
-        fGCC <- gcc.corfinal(results[i][[1]])
-        corpvalueMatrix[kk, 3] <- fGCC$gcc.fcor
-        corpvalueMatrix[kk, 4] <- fGCC$gcc.fpvalue
-      }
-      else {
-        corpvalueMatrix[kk, 3] <- results[i][[1]]$cor
-        corpvalueMatrix[kk, 4] <- results[i][[1]]$pvalue
-      }
-    }
-    return(corpvalueMatrix[1:kk, ])
-  }
-  else {
-    UniqueRow <- sort(unique(taskmatrix[, 1]))
-    UniqueCol <- sort(unique(taskmatrix[, 2]))
-    corMatrix <- matrix(0, nrow = length(UniqueRow), ncol = length(UniqueCol))
-    rownames(corMatrix) <- rownames(GEMatrix)[UniqueRow]
-    colnames(corMatrix) <- rownames(GEMatrix)[UniqueCol]
-    pvalueMatrix <- corMatrix
-    pvalueMatrix[] <- NA
-    for (i in 1:dim(taskmatrix)[1]) {
-      rowidx <- which(UniqueRow == taskmatrix[i, 1])
-      colidx <- which(UniqueCol == taskmatrix[i, 2])
-      if (cormethod == "GCC") {
-        fGCC <- gcc.corfinal(results[i][[1]])
-        corMatrix[rowidx, colidx] <- fGCC$gcc.fcor
-        pvalueMatrix[rowidx, colidx] <- fGCC$gcc.fpvalue
-      }
-      else {
-        corMatrix[rowidx, colidx] <- results[i][[1]]$cor
-        pvalueMatrix[rowidx, colidx] <- results[i][[1]]$pvalue
-      }
-      if (style == "pairs.between" | style == "all.pairs") {
-        corMatrix[colidx, rowidx] <- corMatrix[rowidx, 
-                                               colidx]
-        pvalueMatrix[colidx, rowidx] <- pvalueMatrix[rowidx, 
-                                                     colidx]
-      }
-    }
-    return(list(corMatrix = corMatrix, pvalueMatrix = pvalueMatrix))
-  }
 }
 ##
 cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"), 
@@ -1425,53 +1136,28 @@ cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"),
     stop("Error: the lengths of each row in x are different.\n")
   }
   realcor <- getcor(x1, y1, cormethod)
-  # if (pernum <= 0) {
-  #   if (cormethod == "GCC") {
-  #     ## TO MODIFY ####### return(list(gcc.rankx = realcor$gcc.rankx, gcc.ranky = realcor$gcc.ranky, 
-  #     ## TO MODIFY #######             gcc.rankx.pvalue = NA, gcc.ranky.pvalue = NA))
-  #   }
-  #   else {
-  #     return(list(cor = realcor, pvalue = NA))
-  #   }
-  # }
-  # else {
-  #   pGCCMatrix <- matrix(0, nrow = pernum, ncol = 2)
-  #   colnames(pGCCMatrix) <- c("gcc.rankx", "gcc.ranky")
-  #   rownames(pGCCMatrix) <- paste("permut", seq(1, pernum, 
-  #                                               by = 1), sep = "")
-  #   GenePairXY <- t(matrix(c(x1, y1), ncol = 2))
-  #   pGenePairXY <- GenePairXY
-  #   Length <- length(x1)
-  #   for (i in 1:pernum) {
-  #     curtime <- format(Sys.time(), "%H:%M:%OS4")
-  #     XXX <- unlist(strsplit(curtime, ":"))
-  #     curtimeidx <- (as.numeric(XXX[1]) * 3600 + as.numeric(XXX[2]) * 
-  #                      60 + as.numeric(XXX[3])) * 10000
-  #     set.seed(curtimeidx)
-  #     TT = sort(runif(Length), index.return = TRUE)$ix
-  #     pGenePairXY[1, ] <- GenePairXY[1, TT]
-  #     if (cormethod == "GCC") {
-  #       cortmp <- getcor(pGenePairXY[1, ], pGenePairXY[2, 
-  #                                                      ], cormethod)
-  #       pGCCMatrix[i, 1] <- cortmp$gcc.rankx
-  #       pGCCMatrix[i, 2] <- cortmp$gcc.ranky
-  #     }
-  #     else {
-  #       pGCCMatrix[i, 1] <- getcor(pGenePairXY[1, ], 
-  #                                  pGenePairXY[2, ], cormethod)
-  #     }
-  #   }
-    if (cormethod == "GCC") {
-      ## TO MODIFY #######  return(list(gcc.rankx = realcor$gcc.rankx, gcc.ranky = realcor$gcc.ranky, 
-      ## TO MODIFY #######             gcc.rankx.pvalue = getpvalue(pGCCMatrix[, 1], 
-      ## TO MODIFY #######                                          pernum, realcor$gcc.rankx, sigmethod), 
-                                                                    gcc.ranky.pvalue = getpvalue(pGCCMatrix[,2], 
-                                                                                                 pernum, realcor$gcc.ranky, 
-                                                                                                 sigmethod)))
-    }
-    else {
-      return(list(cor = realcor, pvalue = getpvalue(pGCCMatrix[,1], pernum, realcor, sigmethod)))
-    }
+  if (pernum <= 0) {
+    return(list(cor = realcor, pvalue = NA))
+  }else {
+     pGCCMatrix <- matrix(0, nrow = pernum, ncol = 2)
+     colnames(pGCCMatrix) <- c("gcc.rankx", "gcc.ranky")
+     rownames(pGCCMatrix) <- paste("permut", seq(1, pernum, 
+                                                 by = 1), sep = "")
+     GenePairXY <- t(matrix(c(x1, y1), ncol = 2))
+     pGenePairXY <- GenePairXY
+     Length <- length(x1)
+     for (i in 1:pernum) {
+       curtime <- format(Sys.time(), "%H:%M:%OS4")
+       XXX <- unlist(strsplit(curtime, ":"))
+       curtimeidx <- (as.numeric(XXX[1]) * 3600 + as.numeric(XXX[2]) * 
+                        60 + as.numeric(XXX[3])) * 10000
+       set.seed(curtimeidx)
+       TT = sort(runif(Length), index.return = TRUE)$ix
+       pGenePairXY[1, ] <- GenePairXY[1, TT]
+       pGCCMatrix[i, 1] <- getcor(pGenePairXY[1, ], 
+                                  pGenePairXY[2, ], cormethod)
+       }
+     return(list(cor = realcor, pvalue = getpvalue(pGCCMatrix[,1], pernum, realcor, sigmethod)))
   }
 }
 
