@@ -16,10 +16,11 @@
 # variable $13: file names of co-expression
 # variable $14: nb
 # variable $15: script
-
+setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
+sourceCpp("../src/gini.cpp")
 Necorr <- function(network.file, expression, description.file, condition,
                    metadata, name, 
-                   Filelist #condition list see if still necessary with metadata
+                   Filelist, #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",
                    gdesc,
