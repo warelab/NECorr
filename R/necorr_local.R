@@ -16,6 +16,10 @@
 # variable $13: file names of co-expression
 # variable $14: nb
 # variable $15: script
+network.file <- "../data/network.txt"
+expression <- "../data/expression.txt"
+description.file <- "../data/description.csv"
+
 setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
 sourceCpp("../src/gini.cpp")
 Necorr <- function(network.file, expression, description.file, condition,
@@ -23,7 +27,6 @@ Necorr <- function(network.file, expression, description.file, condition,
                    Filelist, #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",
-                   gdesc,
                    type = "gene",
                    dirtmp="./results/tmp", dirout = './results'){
   #' @author Christophe Liseron-Monfils
@@ -31,7 +34,7 @@ Necorr <- function(network.file, expression, description.file, condition,
   #' first column: type of sample,second column: sample names
   #' @param network.file Molecular network file with source in the first column, targets in
   #'  the second column
-  #' @param description.file 
+  #' @param description.file genome description
   #' @param condition Condition from expression to study the network co-expression
   #' correlation
   #' @param type Omics comparative expression type: protein or gene
@@ -39,7 +42,6 @@ Necorr <- function(network.file, expression, description.file, condition,
   #' @param lmiR List of miRNAs
   #' @param method Method used for co-expression correlation: GCC, MINE, PCC,
   #' SCC or KCC
-  #' @param gdesc genome description
   #' @param dirtmp directory for the temporary results
   #' @param dirout directory for the results
   #' @param fadjacency correlation with all combination (all) or network
@@ -239,7 +241,9 @@ Necorr <- function(network.file, expression, description.file, condition,
       nsockets = NSockets
       #i <- 1
       CondName <- df[i,1]
-      CondPutFile <- paste0("3_Expression",name,"_",netname,"_",condition, "_gene_",CoorMetric,"_",incrtype,"_",permutation,"_",CondName,"_CorrM_PvalM.txt")
+      CondPutFile <- paste0("3_Expression",name,"_",netname,"_",condition, 
+                            "_gene_",CoorMetric,"_",incrtype,"_",permutation,
+                            "_",CondName,"_CorrM_PvalM.txt")
       sample.l <- df[i,2]
       print(paste( "the condition is",CondName,"the factor is:",sample.l,sep=" "))
       print(paste( "correlation",CondPutFile,"files:",filecoexp,sep=" "))
@@ -406,7 +410,8 @@ Necorr <- function(network.file, expression, description.file, condition,
       time.taken <- end.time - start.time
       print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
-      print("### VII - Hub NECorr merge all the subnetwork statistics for the studied tissue or condition in one table column")
+      print("### VII - Hub NECorr merge all the subnetwork statistics for 
+            the studied tissue or condition in one table column")
       start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
@@ -432,7 +437,9 @@ Necorr <- function(network.file, expression, description.file, condition,
       #tail(m.param)
       par.tab <- m.param
       write.table(par.tab,
-                  paste0("results/",condition,"/8_hub_gene_Std_param.",sample.l,"_",CondName,"_",netname,"_",CoorMetric,"_",permutation,".txt"),
+                  paste0("results/",condition,"/8_hub_gene_Std_param.",
+                         sample.l,"_",CondName,"_",netname,"_",CoorMetric,
+                         "_",permutation,".txt"),
                   sep = "\t",quote = FALSE,row.names = FALSE)
       rm(par.tab)
       m.param = m.param[,-1]
@@ -467,7 +474,9 @@ Necorr <- function(network.file, expression, description.file, condition,
       
       gene.rank.h.description = merge(gene.rank.h,Desc,all.x = T, by = "row.names",sort=FALSE)
       colnames(gene.rank.h.description)[1]<- "GeneID"
-      write.csv(as.data.frame(gene.rank.h.description),paste0(subDirFile,sample.l,netname,permutation,"_Hub_gene_prioritization.csv")
+      write.csv(as.data.frame(gene.rank.h.description),paste0(subDirFile,sample.l,
+                                                              netname,permutation,
+                                                              "_Hub_gene_prioritization.csv")
                 ,quote=FALSE,row.names=FALSE)
       colnames(gene.rank.h)[1] <- sample.l
       total.rank.h <- merge(total.rank,gene.rank.h,all.x=T, by= "row.names")
@@ -644,7 +653,8 @@ Necorr <- function(network.file, expression, description.file, condition,
       vsize <- c(vsize.act,vsize.hub)
       vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
       if (is.finite(vsize) & vsize>0){
-        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",CoorMetric,"_",permutation,"interaction_graph.pdf")
+        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",
+                        CoorMetric,"_",permutation,"interaction_graph.pdf")
         # 	    mark.groups <- vcolors
         # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
         # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
@@ -654,7 +664,8 @@ Necorr <- function(network.file, expression, description.file, condition,
         dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , 
                      vertex.shape="sphere", vertex.size = vsize, 
                      vertex.label = vlabel, edge.color = "grey",
-                     edge.arrow.size = 0.3, vertex.color = vcolors,vertex.frame.color = vcolors, newpage = F)
+                     edge.arrow.size = 0.3, vertex.color = vcolors,
+                     vertex.frame.color = vcolors, newpage = F)
         dev.off()
       }
     }
