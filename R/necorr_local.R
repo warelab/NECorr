@@ -19,6 +19,7 @@
 network.file <- "../data/network.txt"
 expression <- "../data/expression.txt"
 description.file <- "../data/description.csv"
+metadata <- "../data/metadata.txt"
 
 setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
 sourceCpp("../src/gini.cpp")
@@ -126,7 +127,6 @@ Necorr <- function(network.file, expression, description.file, condition,
   # and order these tissue/stress-selective genes
   
   sample.names <- unique(factortab$Treatment) 
-  coexpression.cond <- unique(factortab$Condition)
   xcol <-c()
   treatment.f <- factor()
   for (i in 1:length(sample.names)){ 
@@ -262,7 +262,8 @@ Necorr <- function(network.file, expression, description.file, condition,
       # as both can important at genetic level repression or activation of a gene
       # are part of the tissue specificity
       
-      nreplics <- table(treatment.f) ####  Need to find a way to order factor by order of appearance in expression file
+      nreplics <- table(treatment.f) 
+      ####  Need to find a way to order factor by order of appearance in expression file
       # e.g nreplics <- c(4,4,4)
       
       m.eset = as.matrix(m.eset)
@@ -277,7 +278,9 @@ Necorr <- function(network.file, expression, description.file, condition,
       # Rank the tissue selective genes using the Tissue Selective Index
       # for each gene TSI for activation and modify for tissue repression
       m.eset = as.data.frame(m.eset)
-      meansFactor <- do.call("cbind", tapply(1:ncol(m.eset), treatment.f, function(x) rowMeans(m.eset[x])))
+      meansFactor <- do.call("cbind", tapply(1:ncol(m.eset), 
+                                             treatment.f, 
+                                             function(x) rowMeans(m.eset[x])))
       # Tissue-selective genes(up)
       if(length(act[which(act==TRUE)])>0){
         act <- act[which(names(act) %in% rownames(meansFactor))]
