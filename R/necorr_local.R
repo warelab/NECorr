@@ -21,14 +21,17 @@ expression <- "../data/expression.txt"
 description.file <- "../data/description.csv"
 metadata <- "../data/metadata.txt"
 
+Necorr(network.file=network.file, expression=expression, 
+       description.file=description.file,
+       condition="state1",metadata=metadata, name="test")
+
 setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
-sourceCpp("../src/gini.cpp")
-Necorr <- function(network.file, expression, description.file, condition,
-                   metadata, name, 
+
+Necorr <- function(network.file, expression, description.file,
+                   condition,metadata, name, 
                    Filelist, #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
-                   fadjacency = "only",
-                   type = "gene",
+                   fadjacency = "only",type = "gene",
                    dirtmp="./results/tmp", dirout = './results'){
   #' @author Christophe Liseron-Monfils
   #' @param expression Expression file in log2 (ratio expression) with row: gene,
@@ -56,10 +59,6 @@ Necorr <- function(network.file, expression, description.file, condition,
   #' The output of the program will be generated in a result folder generated
   #' in the working path
   
-  # Create a random number used for the rest of the analysis
-  # this will distingish analysis done with the same dataset.
-  nb <- RANDOM
-  
   # Create the output directory if not existing; generate "./results" dir and
   # "./results/tmp"
   if(!dir.exists(dirout)){
@@ -74,14 +73,15 @@ Necorr <- function(network.file, expression, description.file, condition,
   suppressWarnings(suppressPackageStartupMessages(require(RColorBrewer)))
   suppressWarnings(suppressPackageStartupMessages(require(gplots)))
   library(Rcpp)
-  sourceCpp("gini.cpp")
-  double_me3(5)
+  sourceCpp("../src/gini.cpp")
   # load file and options
   # read network file
   network.int <- read.delim(network.file, sep ="\t", header = T,fileEncoding="latin1")
   # Condition experiment and/or tissue
+  
   factortab <- read.table(metadata,header = T) #factor.file #condition <- "Radial"
   # Description file name with gene name and annotations
+  print("intermediate 1")
   Desc <-  read.csv(description.file,header=T, row.name=1) #description.file <- "1.Ath.GeneDesc.csv"
   # Create the subdirectory for the fianl results
   # need to see if all these tables are still useful??
@@ -126,11 +126,11 @@ Necorr <- function(network.file, expression, description.file, condition,
   # the tissue/stress-selectivity of each sample type
   # and order these tissue/stress-selective genes
   
-  sample.names <- unique(factortab$Treatment) 
+  sample.names <- unique(factortab[,1]) 
   xcol <-c()
   treatment.f <- factor()
   for (i in 1:length(sample.names)){ 
-    nrep <- length(which(factortab$Treatment == sample.names[i]))
+    nrep <- length(which(factortab[,1] == sample.names[i]))
     if(nrep == 1){
       xcol <- c(xcol,rep(i,3))
       treatment.f <- factor(c(as.character(treatment.f),as.character(rep(sample.names[i],3))))
@@ -148,6 +148,7 @@ Necorr <- function(network.file, expression, description.file, condition,
   #start.time <- Sys.time()
   # Generate all the topology statistics using the function NetTopology
   netstat <- NetTopology(network.int)
+  netname <- basename(network.file)
   write.csv(netstat,paste0(dirout,"/",condition,"/5_",netname,"_NetStat.csv"))
   Genelist <- rownames(netstat)
   BetwC <- structure(netstat$BetweennessCentrality, names=Genelist)  #3 betweeness
@@ -169,8 +170,8 @@ Necorr <- function(network.file, expression, description.file, condition,
   m.eset <- as.matrix(eset)  
   m.eset <- m.eset[-grep("NA",rownames(m.eset)),xcol]
   # Loop to measure the importance of gene expression 
-  conditionList <-factortab$Condition
-  factorList <- factortab$Treatment
+  conditionList <-factortab[,2]
+  factorList <- factortab[,1]
   df <- cbind(as.character(conditionList),as.character(factorList))
   df <- df[!duplicated(df),]
   
@@ -184,7 +185,7 @@ Necorr <- function(network.file, expression, description.file, condition,
   
   ## Loop to do the anlysis per condition defined in the first row of the expression data
   #CondNB <-1  ### test of the code without loop
-  for (CondNB in 1:condnb ){
+  for (CondNB in 1:condnb){
     fileexp <- as.character(files[CondNB,1])
     x.exp <- as.matrix(read.table(paste0(dirout,"/",fileexp)))
     
@@ -675,32 +676,6 @@ Necorr <- function(network.file, expression, description.file, condition,
   }
 }
 ########################
-factorfile <- function(exps, nb, condition , dirout = "./results/tmp/"){
-#' @author Christophe Liseron-Monfils
-#' @param exps Expression file in log2(ratio expression) with row:gene,
-#' first column: type of sample, second colum: sample names
-#' @param condition Different sample present in the expression data: stress
-#' condition, tissue types and/or developmental stages
-#' @param nb
-#' @param dirout results directory
-#' @description Generate the factor file for the co-expression analysis
-
-# Keep only the core filename by erasing the prefix dir and the suffix
-# (file extension)
-name <- extractname(exps)
-out <- paste0(dirout, "/", condition, ".", name, ".", nb, ".Factor.txt")
-tab <- read.delim2(exps)
-Conditions <- as.character(tab[1, ])
-Factors <- as.character(tab[2, ])
-Samples <- as.character(tab[3, ])
-
-# Print the vector file
-tabFact <- do.call("rbind", list(Samples, Factors, Conditions))
-rownames(tabFact) <- tabFact$Samples
-tabFact <- tabFact[, -1]
-return(tabFact)
-
-}
 
 extractname <- function(filestring){
   #' @author Christophe Liseron-Monfils

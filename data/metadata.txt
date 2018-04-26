@@ -1,1 +1,1 @@
-	conditionf1	cond1f2	cond1f3	cond1f4	cond2f5	cond3f6	cond3f7	cond3f8	cond4f9	cond4f10	cond4f11	cond5f12	cond5f13	cond5f14	cond6f15	cond6f16	cond6f17	cond7f18	cond7f19	cond8f20	cond8
+	treatment	conditionf1	cond1	state1f2	cond1	state1f3	cond1	state1f4	cond2	state1f5	cond3	state1f6	cond3	state1f7	cond3	state1f8	cond4	state1f9	cond4	state1f10	cond4	state1f11	cond5	state2f12	cond5	state3f13	cond5	state4f14	cond6	state5f15	cond6	state6f16	cond6	state7f17	cond7	state8f18	cond7	state9f19	cond8	state10f20	cond8	state11
