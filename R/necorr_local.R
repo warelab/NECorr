@@ -28,11 +28,12 @@ Necorr(network.file=network.file, expression=expression,
 setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
 
 Necorr <- function(network.file, expression, description.file,
-                   condition,metadata, name, 
+                   condition, metadata, name, 
                    Filelist, #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",type = "gene",
-                   dirtmp="./results/tmp", dirout = './results'){
+                   dirtmp="./results/tmp", dirout = './results',
+                   NSockets = 2){
   #' @author Christophe Liseron-Monfils
   #' @param expression Expression file in log2 (ratio expression) with row: gene,
   #' first column: type of sample,second column: sample names
@@ -64,12 +65,15 @@ Necorr <- function(network.file, expression, description.file,
   if(!dir.exists(dirout)){
     dir.create(dirout)
   }
+  if(!dir.exists(paste0(dirout,"/",condition))){
+    dir.create(paste0(dirout,"/",condition), recursive = T)
+  }
   if(!dir.exists(dirtmp)){
     dir.create(dirtmp, recursive = T)
   }
   # AT THE END ADD THE OTHER FUNCTIONS FROM SOURCE
   #source("./src/NECorr.functions.v3.R")
-  #load("./src/ML_model.RData")
+  load("./ML_model.RData")
   suppressWarnings(suppressPackageStartupMessages(require(RColorBrewer)))
   suppressWarnings(suppressPackageStartupMessages(require(gplots)))
   library(Rcpp)
@@ -81,16 +85,15 @@ Necorr <- function(network.file, expression, description.file,
   
   factortab <- read.table(metadata,header = T) #factor.file #condition <- "Radial"
   # Description file name with gene name and annotations
-  print("intermediate 1")
   Desc <-  read.csv(description.file,header=T, row.name=1) #description.file <- "1.Ath.GeneDesc.csv"
   # Create the subdirectory for the fianl results
   # need to see if all these tables are still useful??
-  subDirTS = paste0(dirout, "/",condition,"/4_TS_file/")
-  subDirGraph = paste0(dirout, "/",condition,"/6_TS_graph/")
-  subDirFile = paste0(dirout, "/",condition,"/7_gene_ranking_per_condition/")
-  dir.create(file.path(dirout, subDirTS), showWarnings = FALSE)
-  dir.create(file.path(dirout, subDirGraph), showWarnings = FALSE)
-  dir.create(file.path(dirout, subDirFile), showWarnings = FALSE)
+  subDirTS = paste0(dirout, "/", condition,"/4_TS_file/")
+  subDirGraph = paste0(dirout, "/", condition, "/6_TS_graph/")
+  subDirFile = paste0(dirout, "/", condition, "/7_gene_ranking_per_condition/")
+  dir.create(file.path(subDirTS), showWarnings = FALSE)
+  dir.create(file.path(subDirGraph), showWarnings = FALSE)
+  dir.create(file.path(subDirFile), showWarnings = FALSE)
   #___________________ MAIN SCRIPT ___________________________________
   
   # calculate the weight for each parameter
@@ -161,51 +164,54 @@ Necorr <- function(network.file, expression, description.file,
   total.rank = matrix(data = NA, nrow = length(Genelist))
   rownames(total.rank) <- Genelist
   total.rank[,1] = Genelist
+  print(Genelist)
   print("R network topology done")
  
   # Read expression file
-  eset <- read.csv(expression,header = T) #!! change made Here
+  eset <- read.table(expression,header = T,row.names=1) #!! change made Here
   # Take only the genes that are part of the molecular network
   eset <- eset[Genelist,] #!! change made Here
   m.eset <- as.matrix(eset)  
-  m.eset <- m.eset[-grep("NA",rownames(m.eset)),xcol]
+  print(eset)
+  m.eset <- m.eset[-grep("NA", rownames(m.eset)), xcol]
   # Loop to measure the importance of gene expression 
   conditionList <-factortab[,2]
   factorList <- factortab[,1]
   df <- cbind(as.character(conditionList),as.character(factorList))
   df <- df[!duplicated(df),]
-  
-  
+
   suppressWarnings(suppressPackageStartupMessages(require(foreach)))
   suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
-  files.list <- paste0(dirout,"/",Filelist)
-  print(files.list)
-  files <- read.table(files.list)
-  condnb <- nrow(files)
-  
+  #files.list <- paste0(dirout,"/",Filelist)
+  #print(files.list)
+  #files <- read.table(files.list)
+  #condnb <- nrow(files)
+  condnb <- length(conditionList)
   ## Loop to do the anlysis per condition defined in the first row of the expression data
-  #CondNB <-1  ### test of the code without loop
+  #CondNB <- 1  ### test of the code without loop
   for (CondNB in 1:condnb){
-    fileexp <- as.character(files[CondNB,1])
-    x.exp <- as.matrix(read.table(paste0(dirout,"/",fileexp)))
-    
-    end.time <- Sys.time()
-    time.taken <- end.time - start.time
-    print(time.taken)
+    #fileexp <- as.character(files[CondNB,1])
+    fileexp <- as.character(basename(expression))
+    #x.exp <- as.matrix(read.table(paste0(dirout,"/",fileexp)))
+    #end.time <- Sys.time()
+    #time.taken <- end.time - start.time
+    #print(time.taken)
     
     ###------------------------------------------------------------------------------------------------------------------------
     print("### II - Analysis of the co-expression file and p-value sums")
     #start.time <- Sys.time()
     ###------------------------------------------------------------------------------------------------------------------------
-    int.sig <- bigcorGCC(x.exp, net = network.int, nsockets = NSockets,
-                         methods= method, output = "paired", sigmethod = "two.sided", 
-                         pernum = permutation , verbose = FALSE, cpus = NSockets, type = incrtype)
+    #int.sig <- bigcorGCC(x.exp, net = network.int, nsockets = NSockets,
+    int.sig <- bigcorGCC(m.eset, net = network.int, nsockets = NSockets,
+                        methods= method, output = "paired", sigmethod = "two.sided", 
+                        pernum = permutation , verbose = FALSE, cpus = NSockets)
+   
     
-    
-    filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
+    #filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
+    filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.txt")
     int.sig.file <- int.sig
     colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
-    write.csv(int.sig.file, paste0(dirout,"/",filecoexp))
+    write.csv(int.sig.file, paste0(dirout, "/", condition, "/", filecoexp))
     
     # create a function to generate a continuous color palette
     rbPal <- colorRampPalette(c('yellow','blue'))
@@ -216,16 +222,18 @@ Necorr <- function(network.file, expression, description.file,
     int.sig <- int.sig[complete.cases(int.sig),]
     
     # Transform the p-value in the maximal p-value in function of number of permutations to avoid log-scale = infinity
-    # Replace the p-value equal to 0 by the maximal p-value e.g. 1/10000 knowing that we have 10000 randomizations in initial calculations
+    # Replace the p-value equal to 0 by the maximal p-value e.g. 
+    #1/10000 knowing that we have 10000 randomizations in initial calculations
     max.p.val = 1/as.numeric(permutation)
     int.sig[which(int.sig[,4] == 0),4] = max.p.val
     int.sig <-as.data.frame(int.sig)
     p.int.sig  = as.numeric(as.character(int.sig[,4]))
     pval <- -log(p.int.sig,10)
     int.sig$Col <- rbPal(10)[as.numeric(cut(pval,breaks = 10))]
-    title <- paste0(as.character(files[as.numeric(CondNB),1]),"Sig.Interaction.pdf")
+    title <- paste0(as.character(basename(expression)),"Sig.Interaction.pdf")
+    
     pdf(title)
-    xlabel = paste0(CoorMetric," score")
+    xlabel = paste0(method," score")
     #plot(as.numeric(as.character(int.sig[,3])),pval,pch = ".", xlab=xlabel,ylab= "Significance (-log scale)",col= int.sig$Col )
     #abline( h=1.3, col ="red",lty='dotted')
     #legend("top", pch= c(21,21,NA), title="Interaction Significance",
@@ -243,19 +251,19 @@ Necorr <- function(network.file, expression, description.file,
       #i <- 1
       CondName <- df[i,1]
       CondPutFile <- paste0("3_Expression",name,"_",netname,"_",condition, 
-                            "_gene_",CoorMetric,"_",incrtype,"_",permutation,
+                            "_gene_",method,"_",permutation,
                             "_",CondName,"_CorrM_PvalM.txt")
       sample.l <- df[i,2]
       print(paste( "the condition is",CondName,"the factor is:",sample.l,sep=" "))
       print(paste( "correlation",CondPutFile,"files:",filecoexp,sep=" "))
       # interaction file
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### III - Define gene tissue specificity index (TSI) (Yanai 2011, Bioinformatics)")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       # Add the weight for the studied tissue
@@ -298,6 +306,9 @@ Necorr <- function(network.file, expression, description.file,
           tsi = c()
           tsi.order = c()
         }
+      }else{
+        tsi = c()
+        tsi.order = c()       
       }
       # Tissue-selective genes(down)
       if(length(rep[which(rep==TRUE)])>0){
@@ -315,44 +326,50 @@ Necorr <- function(network.file, expression, description.file,
           tsr = c()
           tsr.order = c()
         }
+      }else{
+        tsr = c()
+        tsr.order = c()
       }
       # Vector of tissue-selectivity
       ts <- c(tsr,tsi) #2 expression specificity
       if(!is.null(ts)){
         write.csv(meansFactor[names(c(tsr.order,tsi.order)),],
-                  paste0(subDirTS,sample.l,CondName,netname,"_",CoorMetric,"_",permutation,"TS_ranking.csv"))
+                  paste0(subDirTS,sample.l,CondName,netname,"_",method,"_",permutation,"TS_ranking.csv"))
         
-        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",CoorMetric,"_",permutation,"TS_ranking.pdf")
+        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",method,"_",permutation,"TS_ranking.pdf")
         y <- as.matrix(meansFactor[names(c(tsr.order,tsi.order)),])
         if(length(names(c(tsr.order,tsi.order))) > 10){
           decal.y <- -3*(length(names(c(tsr.order,tsi.order)))/length(Genelist))
         }else{
           decal.y <- 0.2
         }
-        pdf(title, height=10, width=15)
-        heatmap.2(as.matrix(meansFactor[names(c(tsr.order,tsi.order)),]), Rowv =FALSE,
-                  Colv = FALSE,scale ="row",
-                  main = paste0(sample.l,CondName," Condition selective genes"),
-                  density.info= "none",cexCol= 0.8,labRow='',
-                  trace= "none",dendrogram = "none",
-                  margins = c(15, 4),
-                  lhei = c(1, 8),
-                  keysize= .6,labCol = '',
-                  add.expr = text(x = seq_along(colnames(y)),
-                                  y = decal.y,
-                                  srt = 60,cex=.8,
-                                  labels = colnames(y), xpd = NA,adj=0, pos =2),
-                  col=colorpanel(121,"lightyellow","yellow","darkblue")
-        )
-        dev.off()
+        if(!is.null(meansFactor[names(c(tsr.order,tsi.order)), ])){
+          pdf(title, height=10, width=15)
+          heatmap.2(as.matrix(meansFactor[names(c(tsr.order,tsi.order)),]), Rowv =FALSE,
+                    Colv = FALSE,scale ="row",
+                    main = paste0(sample.l,CondName," Condition selective genes"),
+                    density.info= "none",cexCol= 0.8,labRow='',
+                    trace= "none",dendrogram = "none",
+                    margins = c(15, 4),
+                    lhei = c(1, 8),
+                    keysize= .6,labCol = '',
+                    add.expr = text(x = seq_along(colnames(y)),
+                                    y = decal.y,
+                                    srt = 60,cex=.8,
+                                    labels = colnames(y), xpd = NA,adj=0, pos =2),
+                    col=colorpanel(121,"lightyellow","yellow","darkblue")
+          )
+          dev.off()
+        }
+
       }
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       
       ###------------------------------------------------------------------------------------------------------------------------
       print("### IV - Determine the overall interaction importance for each node (gene)")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       # for the interactions coming from the same node
@@ -376,23 +393,23 @@ Necorr <- function(network.file, expression, description.file,
         #print(cumpvals)
       }
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### V Differential Expression ranking for the gene in the network for the factor")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       DE.ranks <- DE.ranking(m.eset,Genelist,treatment.f,sample.l)
       #the results are already scaled
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### VI Normalize each column between [0,1] using the some")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       int.pvals = ScalN(int.pvals)  #1 interaction p-values
@@ -410,13 +427,13 @@ Necorr <- function(network.file, expression, description.file,
       EigenC = as.data.frame(EigenC)
       PageRank = as.data.frame(PageRank)
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### VII - Hub NECorr merge all the subnetwork statistics for 
             the studied tissue or condition in one table column")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       m.param = merge(int.pvals,ts,by="row.names",all=T)
@@ -442,23 +459,23 @@ Necorr <- function(network.file, expression, description.file,
       par.tab <- m.param
       write.table(par.tab,
                   paste0("results/",condition,"/8_hub_gene_Std_param.",
-                         sample.l,"_",CondName,"_",netname,"_",CoorMetric,
+                         sample.l,"_",CondName,"_",netname,"_",method,
                          "_",permutation,".txt"),
                   sep = "\t",quote = FALSE,row.names = FALSE)
       rm(par.tab)
       m.param = m.param[,-1]
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### VIII - calculate the weight for: (use ahp to generate weight)")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       #done before the loop wpar variable
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       
       ###------------------------------------------------------------------------------------------------------------------------
       print("### IX Hub NECorr - pick the top genes for validations (best alternatives)")
@@ -487,12 +504,12 @@ Necorr <- function(network.file, expression, description.file,
       rownames(total.rank.h) <- total.rank.h[,1]
       total.rank.h <- total.rank.h[,-1]
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### X - Effector NECorr - pick the top genes for validations (best alternatives)")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
       # calculate the probability = alternative ranking
@@ -522,12 +539,12 @@ Necorr <- function(network.file, expression, description.file,
       total.rank.eff <- total.rank.eff[,-1]
       
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### XI - Hub interaction ranking")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       # hub sub-network
       cl2 <- makeCluster(nsockets, type="SOCK")
@@ -565,12 +582,12 @@ Necorr <- function(network.file, expression, description.file,
       eff.int.ranks$p2 <- as.numeric(as.character(eff.int.ranks$p2))
       eff.int.significant = subset(eff.int.ranks, p2 < 0.005)
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### XII - Activator NECorr - based on genes in the complete network that are linked to the hub genes")
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       # find genes that are significant in the hub subnetwork in the complete network
       sig.hub <- unique(c(as.character(hub.int.significant$V1), as.character(hub.int.significant$V2)))
@@ -610,13 +627,13 @@ Necorr <- function(network.file, expression, description.file,
       write.csv(as.data.frame(gene.rank.act.description),paste0(subDirFile,sample.l,netname,permutation,"_act_gene_prioritization.csv")
                 ,quote=FALSE,row.names=FALSE)
       
-      end.time <- Sys.time()
-      time.taken <- end.time - start.time
-      print(time.taken)
+      #end.time <- Sys.time()
+      #time.taken <- end.time - start.time
+      #print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### XIII  - Vizualization of network and list of interaction that could affected and color")
       ###------------------------------------------------------------------------------------------------------------------------
-      start.time <- Sys.time()
+      #start.time <- Sys.time()
       suppressWarnings(suppressPackageStartupMessages(library(igraph)))
       suppressWarnings(suppressPackageStartupMessages(library(dnet)))
       hub.net <- as.data.frame(cbind(as.character(hub.int.significant$V1), as.character(hub.int.significant$V2),
@@ -641,36 +658,43 @@ Necorr <- function(network.file, expression, description.file,
       rm(sc.sig.eff,tg.sig.eff,eff.net.pre)
       
       # link activator and hub significant sub-networks
-      hub.act.net <- rbind(act.net,hub.net)
-      g <- graph.data.frame(hub.act.net, directed = T)
-      
-      vcolors <- rep("cyan",length(V(g)$name))
-      vcolors[which(V(g)$name %in% sig.hub)] <- "red"
-      
-      vsize.hub <- as.numeric(gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
-      vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
-      
-      temp <- as.data.frame(gene.rank.act.significant)
-      rownames(temp) <- temp[,1]
-      vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
-      vsize.act <- 2^(ScalN(vsize.act) + 2.21)
-      vsize <- c(vsize.act,vsize.hub)
-      vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
-      if (is.finite(vsize) & vsize>0){
-        title <- paste0(subDirGraph,sample.l,"_",CondName,"_",
-                        CoorMetric,"_",permutation,"interaction_graph.pdf")
-        # 	    mark.groups <- vcolors
-        # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
-        # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
-        #
-        # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
-        pdf(file = title, width = 10, height = 10)
-        dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , 
-                     vertex.shape="sphere", vertex.size = vsize, 
-                     vertex.label = vlabel, edge.color = "grey",
-                     edge.arrow.size = 0.3, vertex.color = vcolors,
-                     vertex.frame.color = vcolors, newpage = F)
-        dev.off()
+      if(!is.null(act.net) & !is.null(hub.net)){
+        hub.act.net <- rbind(act.net,hub.net)
+      }else if(!is.null(hub.net)){
+        hub.act.net <- hub.net
+      }
+      if(( nrow(hub.act.net)>0) == TRUE){
+        print(hub.act.net)  ############################################
+        g <- graph.data.frame(hub.act.net, directed = T)
+        
+        vcolors <- rep("cyan",length(V(g)$name))
+        vcolors[which(V(g)$name %in% sig.hub)] <- "red"
+        
+        vsize.hub <- as.numeric(gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
+        vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
+        
+        temp <- as.data.frame(gene.rank.act.significant)
+        rownames(temp) <- temp[,1]
+        vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
+        vsize.act <- 2^(ScalN(vsize.act) + 2.21)
+        vsize <- c(vsize.act,vsize.hub)
+        vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
+        if (is.finite(vsize) & vsize>0){
+          title <- paste0(subDirGraph,sample.l,"_",CondName,"_",
+                          method,"_",permutation,"interaction_graph.pdf")
+          # 	    mark.groups <- vcolors
+          # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
+          # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
+          #
+          # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
+          pdf(file = title, width = 10, height = 10)
+          dnet::visNet(g, glayout=layout.fruchterman.reingold(g) , 
+                       vertex.shape="sphere", vertex.size = vsize, 
+                       vertex.label = vlabel, edge.color = "grey",
+                       edge.arrow.size = 0.3, vertex.color = vcolors,
+                       vertex.frame.color = vcolors, newpage = F)
+          dev.off()
+        }
       }
     }
   }
