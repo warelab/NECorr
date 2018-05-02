@@ -1,8 +1,0 @@
-GeneID,gene.rank.eff,Associated.Gene.Name,Chromosome.Name,Strand,Gene.Biotype,TF.family
-gd,0.999999797434994,locusD,chr1,1,transcription_factor,saur
-gi,0.0645030158999819,locusI,chr2,-1,protein_coding,na
-ge,0.042907500050215,LocusE,chr2,-1,protein_coding,na
-ga,4.59107826730938e-268,locusA,chr1,1,transcription_factor,arf
-gh,4.59107826730936e-268,locusH,chr2,1,protein_coding,na
-gb,2.24870895539053e-268,locusB,chr1,-1,protein_coding,na
-PD,1,NA,NA,NA,NA,NA

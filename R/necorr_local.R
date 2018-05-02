@@ -16,14 +16,19 @@
 # variable $13: file names of co-expression
 # variable $14: nb
 # variable $15: script
-network.file <- "../data/network.txt"
-expression <- "../data/expression.txt"
-description.file <- "../data/description.csv"
-metadata <- "../data/metadata.txt"
+#network.file <- "../data/network.txt"
+#expression <- "../data/expression.txt"
+#description.file <- "../data/description.csv"
+#metadata <- "../data/metadata.txt"
 
-Necorr(network.file=network.file, expression=expression, 
-       description.file=description.file,
-       condition="state1",metadata=metadata, name="test")
+  network.file <- "../data/grnmetanet.txt"
+  expression <- "../data/gene_expression_matrix.txt"
+  description.file <-"../data/1.Ath.GeneDesc.csv"
+  metadata <- "../data/grnmeta.metadata.txt"
+  
+  Necorr(network.file=network.file, expression=expression, 
+         description.file=description.file,
+         condition="meristem_young_leaves_4_week_old",metadata=metadata, name="test")
 
 setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
 
@@ -33,7 +38,7 @@ Necorr <- function(network.file, expression, description.file,
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",type = "gene",
                    dirtmp="./results/tmp", dirout = './results',
-                   NSockets = 2){
+                   NSockets = 1){
   #' @author Christophe Liseron-Monfils
   #' @param expression Expression file in log2 (ratio expression) with row: gene,
   #' first column: type of sample,second column: sample names
@@ -164,7 +169,7 @@ Necorr <- function(network.file, expression, description.file,
   total.rank = matrix(data = NA, nrow = length(Genelist))
   rownames(total.rank) <- Genelist
   total.rank[,1] = Genelist
-  print(Genelist)
+  #print(Genelist)
   print("R network topology done")
  
   # Read expression file
@@ -172,7 +177,7 @@ Necorr <- function(network.file, expression, description.file,
   # Take only the genes that are part of the molecular network
   eset <- eset[Genelist,] #!! change made Here
   m.eset <- as.matrix(eset)  
-  print(eset)
+  #print(eset)
   m.eset <- m.eset[-grep("NA", rownames(m.eset)), xcol]
   # Loop to measure the importance of gene expression 
   conditionList <-factortab[,2]
@@ -343,24 +348,24 @@ Necorr <- function(network.file, expression, description.file,
         }else{
           decal.y <- 0.2
         }
-        if(!is.null(meansFactor[names(c(tsr.order,tsi.order)), ])){
-          pdf(title, height=10, width=15)
-          heatmap.2(as.matrix(meansFactor[names(c(tsr.order,tsi.order)),]), Rowv =FALSE,
-                    Colv = FALSE,scale ="row",
-                    main = paste0(sample.l,CondName," Condition selective genes"),
-                    density.info= "none",cexCol= 0.8,labRow='',
-                    trace= "none",dendrogram = "none",
-                    margins = c(15, 4),
-                    lhei = c(1, 8),
-                    keysize= .6,labCol = '',
-                    add.expr = text(x = seq_along(colnames(y)),
-                                    y = decal.y,
-                                    srt = 60,cex=.8,
-                                    labels = colnames(y), xpd = NA,adj=0, pos =2),
-                    col=colorpanel(121,"lightyellow","yellow","darkblue")
-          )
-          dev.off()
-        }
+        # if((nrow(meansFactor[names(c(tsr.order,tsi.order)),] > 0) == TRUE) | !is.null(meansFactor[names(c(tsr.order,tsi.order)), ])){
+        #   pdf(title, height=10, width=15)
+        #   heatmap.2(as.matrix(meansFactor[names(c(tsr.order,tsi.order)),]), Rowv =FALSE,
+        #             Colv = FALSE,scale ="row",
+        #             main = paste0(sample.l,CondName," Condition selective genes"),
+        #             density.info= "none",cexCol= 0.8,labRow='',
+        #             trace= "none",dendrogram = "none",
+        #             margins = c(15, 4),
+        #             lhei = c(1, 8),
+        #             keysize= .6,labCol = '',
+        #             add.expr = text(x = seq_along(colnames(y)),
+        #                             y = decal.y,
+        #                             srt = 60,cex=.8,
+        #                             labels = colnames(y), xpd = NA,adj=0, pos =2),
+        #             col=colorpanel(121,"lightyellow","yellow","darkblue")
+        #   )
+        #   dev.off()
+        #}
 
       }
       #end.time <- Sys.time()
@@ -876,8 +881,8 @@ DE.ranking <- function(exps,GeneList,factortab,sample.l, exps.file = FALSE){
     df<- as.matrix(read.table(exps, header=TRUE,sep="\t",row.names = 1))
     expression <- df[,colSums(is.na(df)) != nrow(df)]
     targets <- read.table(factortab,header=TRUE,sep="\t",row.names=1)
-    sample.names <- unique(targets$Treatment)
-    f <- factor(targets$Treatment, levels=sample.names)
+    sample.names <- unique(targets[,1])
+    f <- factor(targets[,1], levels=sample.names)
   }
   else { 
     expression <- as.matrix(exps)
