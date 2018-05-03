@@ -26,11 +26,8 @@
   description.file <-"../data/1.Ath.GeneDesc.csv"
   metadata <- "../data/grnmeta.metadata.txt"
   
-  Necorr(network.file=network.file, expression=expression, 
-         description.file=description.file,
-         condition="meristem_young_leaves_4_week_old",metadata=metadata, name="test")
 
-setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
+# setwd("/Users/cliseron/Documents/1_Repository/NECorr/R/")
 
 Necorr <- function(network.file, expression, description.file,
                    condition, metadata, name, 
@@ -38,7 +35,7 @@ Necorr <- function(network.file, expression, description.file,
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",type = "gene",
                    dirtmp="./results/tmp", dirout = './results',
-                   NSockets = 1){
+                   NSockets = 8){
   #' @author Christophe Liseron-Monfils
   #' @param expression Expression file in log2 (ratio expression) with row: gene,
   #' first column: type of sample,second column: sample names
@@ -135,6 +132,7 @@ Necorr <- function(network.file, expression, description.file,
   # and order these tissue/stress-selective genes
   
   sample.names <- unique(factortab[,1]) 
+  print(sample.names)
   xcol <-c()
   treatment.f <- factor()
   for (i in 1:length(sample.names)){ 
@@ -155,9 +153,17 @@ Necorr <- function(network.file, expression, description.file,
   ###------------------------------------------------------------------------------------------------------------------------
   #start.time <- Sys.time()
   # Generate all the topology statistics using the function NetTopology
-  netstat <- NetTopology(network.int)
   netname <- basename(network.file)
-  write.csv(netstat,paste0(dirout,"/",condition,"/5_",netname,"_NetStat.csv"))
+  netstatFile <- paste0(dirout,"/",condition,"/5_",netname,"_NetStat.csv")
+  if(file.exists(netstatFile)){
+    print(paste0("reusing netstat output file ",netstatFile))
+    netstat <- read.csv(netstatFile,header=T, row.name=1)
+  }
+  else {
+    print("running NetTopology")
+    netstat <- NetTopology(network.int)
+    write.csv(netstat,netstatFile)
+  }
   Genelist <- rownames(netstat)
   BetwC <- structure(netstat$BetweennessCentrality, names=Genelist)  #3 betweeness
   Conn <- structure(netstat$EdgeCount, names=Genelist) # 4 connectivity
@@ -204,20 +210,30 @@ Necorr <- function(network.file, expression, description.file,
     
     ###------------------------------------------------------------------------------------------------------------------------
     print("### II - Analysis of the co-expression file and p-value sums")
-    #start.time <- Sys.time()
+    start.time <- Sys.time()
     ###------------------------------------------------------------------------------------------------------------------------
     #int.sig <- bigcorGCC(x.exp, net = network.int, nsockets = NSockets,
-    int.sig <- bigcorGCC(m.eset, net = network.int, nsockets = NSockets,
-                        methods= method, output = "paired", sigmethod = "two.sided", 
-                        pernum = permutation , verbose = FALSE, cpus = NSockets)
+    filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.txt")
+    pathcoexp <- paste0(dirout, "/", condition, "/", filecoexp)
+    if (file.exists(pathcoexp)) {
+      print(paste0("reusing coexp output file ",pathcoexp))
+      int.sig <- read.csv(pathcoexp,header=T, row.name=1)
+    }
+    else {
+      print("calculating coexpression")
+      int.sig <- bigcorGCC(m.eset, net = network.int, nsockets = NSockets,
+                          methods= method, output = "paired", sigmethod = "two.sided", 
+                          pernum = permutation , verbose = FALSE, cpus = NSockets)
    
     
     #filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
-    filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.txt")
-    int.sig.file <- int.sig
-    colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
-    write.csv(int.sig.file, paste0(dirout, "/", condition, "/", filecoexp))
-    
+      int.sig.file <- int.sig
+      colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
+      write.csv(int.sig.file, pathcoexp)
+    }
+    end.time <- Sys.time()
+    time.taken <- end.time - start.time
+    print(time.taken)
     # create a function to generate a continuous color palette
     rbPal <- colorRampPalette(c('yellow','blue'))
     
@@ -374,39 +390,64 @@ Necorr <- function(network.file, expression, description.file,
       
       ###------------------------------------------------------------------------------------------------------------------------
       print("### IV - Determine the overall interaction importance for each node (gene)")
-      #start.time <- Sys.time()
+      start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
-      
-      # for the interactions coming from the same node
-      # create hash with all the gene in the network as keys
-      int.pvals = structure(rep(1, length(Genelist)), names=Genelist)   #1 interaction p-values
-      
-      # add a vector with all the p-value attached to a gene
-      # in the co-expression analysis
-      for (i in 1:length(Genelist)){
-        gene = Genelist[i] # get the name of the gene
-        #print(gene)
-        list = c(grep(gene,int.sig[,1]) , grep(gene,int.sig[,2]))
-        #print(list)
-        pvals = int.sig[list,4]
-        pvals[pvals== 0] = max.p.val  # replace the p-value equal to 0 by the maximal p-value here 1/10000 knowing that we have 10000 randomizations in initial calculations
-        #print(pvals)
-        trans.cumpvals = fishersMethod(as.numeric(as.vector(pvals)))
-        #print(trans.cumpvals)
-        cumpvals = - log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
-        int.pvals[gene]=cumpvals
-        #print(cumpvals)
+      importanceFile = paste0(subDirTS,sample.l,CondName,netname,"_",method,"_",permutation,"importance.csv")
+      if (file.exists(importanceFile)) {
+        print(paste0("reusing importance output file ",importanceFile))
+        int.pvals <- read.csv(importanceFile,header=T, row.name=1)
       }
-      
-      #end.time <- Sys.time()
-      #time.taken <- end.time - start.time
-      #print(time.taken)
+      else {
+        # for the interactions coming from the same node
+        # create hash with all the gene in the network as keys
+        int.pvals = structure(rep(1, length(Genelist)), names=Genelist)   #1 interaction p-values
+        suppressWarnings(suppressPackageStartupMessages(require(hash)))
+        h <- hash()
+        for (i in 1:length(int.sig[,1])) {
+          g1 = as.character(int.sig[i,1])
+          g2 = as.character(int.sig[i,2])
+          twistedcor = 1 - abs(int.sig[i,3]);
+          if (twistedcor == 0) {
+            twistedcor = max.p.val
+          }
+          if (all(has.key(g1, h))) {
+            h[[g1]] <- append(h[[g1]], twistedcor)
+          }
+          else {
+            h[[g1]] <- twistedcor
+          }
+          if (all(has.key(g2, h))) {
+            h[[g2]] <- append(h[[g2]], twistedcor)
+          }
+          else {
+            h[[g2]] <- twistedcor
+          }
+        }
+        end.time <- Sys.time()
+        time.taken <- end.time - start.time
+        print(time.taken)
+        print(" -- populated hash")
+        # add a vector with all the p-value attached to a gene
+        # in the co-expression analysis
+        start.time <- Sys.time()
+        for (i in 1:10) { #length(Genelist)){
+          gene = Genelist[i] # get the name of the gene
+          trans.cumpvals = fishersMethod(h[[gene]])
+          cumpvals = - log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
+          int.pvals[gene]=cumpvals
+        }
+        print(" -- calculated fishersMethod")
+        write.csv(int.pvals,importanceFile)
+      }
+      end.time <- Sys.time()
+      time.taken <- end.time - start.time
+      print(time.taken)
       ###------------------------------------------------------------------------------------------------------------------------
       print("### V Differential Expression ranking for the gene in the network for the factor")
       #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       
-      DE.ranks <- DE.ranking(m.eset,Genelist,treatment.f,sample.l)
+      DE.ranks <- DE.ranking(m.eset,Genelist,treatment.f,sample.l,sample.names)
       #the results are already scaled
       
       #end.time <- Sys.time()
@@ -561,7 +602,6 @@ Necorr <- function(network.file, expression, description.file,
         c(SourceID,TargetID,ranks.sum)
       }
       stopCluster(cl2)
-      
       break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,3]))), Inf)
       p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE )
       p2 <- 1 - p2/length(break.points)
@@ -821,7 +861,7 @@ bigcorGCC <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KC
   corMAT <- c()
   if (methods == "GCC"){
     #### NEW GINI CORRLATION CALCULATION
-    corMAT <- gini(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6) 
+    corMAT <- gini(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6)
   }else{
     suppressWarnings(suppressPackageStartupMessages(require(foreach)))
     suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
@@ -869,7 +909,7 @@ indexing.network <- function (tab,network) {
 }
 
 #differential expression ranking uisng the network gene
-DE.ranking <- function(exps,GeneList,factortab,sample.l, exps.file = FALSE){
+DE.ranking <- function(exps,GeneList,factortab,sample.l,sample.names, exps.file = FALSE){
   suppressWarnings(suppressPackageStartupMessages(require(Biobase)))
   suppressWarnings(suppressPackageStartupMessages(require(limma)))
   # 1-expression file with NECorr format
@@ -1152,3 +1192,6 @@ cor.pair <- function (idxvec, GEMatrix, rowORcol = c("row", "col"),
   }
 }
 
+Necorr(network.file=network.file, expression=expression, 
+       description.file=description.file,
+       condition="meristem_young_leaves_4_week_old",metadata=metadata, name="test")

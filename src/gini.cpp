@@ -86,9 +86,10 @@ unsigned int xorshift128(void) {
   return w;
 }
 
-void confidenceInterval(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm, double confidence, double &min, double &max) {
+double confidenceIntervalAndPvalue(double originalGCC, vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm, double confidence, double &min, double &max) {
   vector<double> xData2 = xData;
   int n = xData.size();
+  int m = 0; // number of times subsample gcc is more extreme than originalGCC
   vector<int> xRank (n);
   vector<int> yRank (n);
   vector<int> xIdx2 (n);
@@ -130,6 +131,17 @@ void confidenceInterval(vector<double> &xData, vector<int> &xIdx, vector<int> &y
       }
     }
     double gcc = calcGCC(xData2,xIdx2,yIdx2,wt,n);
+    if (originalGCC > 0) {
+      if (gcc > originalGCC) {
+        m++;
+      }
+    }
+    else if (gcc < originalGCC) {
+      m++;
+    }
+    if (i > 10 && m/i > 0.3) { // get out early
+      perm = i;
+    }
     int bin = floor((gcc + 1.0)*1000);
     if (bin < 0) {
       bin = 0;
@@ -177,6 +189,7 @@ void confidenceInterval(vector<double> &xData, vector<int> &xIdx, vector<int> &y
     smallBinTally += scoreBins2000[smallBinEnd];
   }
   max = (double)smallBinEnd/1000.0 - 1.0;
+  return (double)m/perm;
 }
 
 // worker to calculate score edges in parallel
@@ -189,20 +202,20 @@ struct scoreEdges : public Worker {
   const int bootstrapIterations;
   const double statCutoff;
 
-  RVector<double> gini, mingini, maxgini;
+  RVector<double> gini, pvalue, mingini, maxgini;
 
   scoreEdges(const IntegerVector source, const IntegerVector target,
              const NumericMatrix data, const IntegerMatrix rank, const NumericVector wt,
              const int bootstrapIterations, const double statCutoff,
-             NumericVector gini, NumericVector mingini, NumericVector maxgini)
+             NumericVector gini, NumericVector pvalue, NumericVector mingini, NumericVector maxgini)
     : source(source), target(target), data(data), rank(rank), wt(wt),
       bootstrapIterations(bootstrapIterations), statCutoff(statCutoff),
-      gini(gini), mingini(mingini), maxgini(maxgini) {}
+      gini(gini), pvalue(pvalue), mingini(mingini), maxgini(maxgini) {}
 
   void operator()(size_t begin, size_t end) {
     for(size_t i=begin; i < end; i++) {
       gini[i] = 0.0;
-      //pvalue[i] = 1.0;
+      pvalue[i] = 1.0;
       mingini[i] = 0.0;
       maxgini[i] = 0.0;
       if (source[i] >= 0 && target[i] >= 0) {
@@ -225,13 +238,13 @@ struct scoreEdges : public Worker {
         if (abs(gcc1) > abs(gcc2)) {
           gini[i] = gcc1;
           if (abs(gcc1) >= statCutoff) {
-            confidenceInterval(sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            pvalue[i] = confidenceIntervalAndPvalue(gini[i], sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
           }
         }
         else {
           gini[i] = gcc2;
           if (abs(gcc2) >= statCutoff) {
-            confidenceInterval(td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            pvalue[i] = confidenceIntervalAndPvalue(gini[i], td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
           }
         }
       }
@@ -279,13 +292,13 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
 
   // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
-  // NumericVector pvalue(nPairs);
+  NumericVector pvalue(nPairs);
   NumericVector mingini(nPairs);
   NumericVector maxgini(nPairs);
-  scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, mingini, maxgini);
+  scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue, mingini, maxgini);
   parallelFor(0, nPairs, scoreEdges);
 
-  return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["mingini"]=mingini, _["maxgini"]=maxgini);
+  return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["pvalue"]=pvalue, _["mingini"]=mingini, _["maxgini"]=maxgini);
 }
 
 
