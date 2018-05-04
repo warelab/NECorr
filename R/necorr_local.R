@@ -430,9 +430,9 @@ Necorr <- function(network.file, expression, description.file,
         # add a vector with all the p-value attached to a gene
         # in the co-expression analysis
         start.time <- Sys.time()
-        for (i in 1:10) { #length(Genelist)){
+        for (i in 1:length(Genelist)){
           gene = Genelist[i] # get the name of the gene
-          trans.cumpvals = fishersMethod(h[[gene]])
+          trans.cumpvals = fishersMethod(as.numeric(as.vector(h[[gene]])))
           cumpvals = - log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
           int.pvals[gene]=cumpvals
         }
@@ -537,7 +537,17 @@ Necorr <- function(network.file, expression, description.file,
       # gene ranking
       gene.rank.h = apply(hub.m.param,1,sum)*100
       gene.rank.h = gene.rank.h[order(gene.rank.h, decreasing=TRUE)]
+      nGenes = length(gene.rank.h)
+      print("building hub rank hash")
       gene.rank.h = as.data.frame(gene.rank.h)
+      #load the ranks into a hash to make step XI faster
+      suppressWarnings(suppressPackageStartupMessages(require(hash)))
+      gene.rank.hash <- hash()
+      geneIDs = row.names(gene.rank.h)
+      for (i in 1:nGenes) {
+        geneRank = as.numeric(gene.rank.h[i,1])
+        gene.rank.hash[[geneIDs[i]]] = geneRank
+      }
       
       gene.rank.h.description = merge(gene.rank.h,Desc,all.x = T, by = "row.names",sort=FALSE)
       colnames(gene.rank.h.description)[1]<- "GeneID"
@@ -584,6 +594,13 @@ Necorr <- function(network.file, expression, description.file,
       rownames(total.rank.eff) <- total.rank.eff[,1]
       total.rank.eff <- total.rank.eff[,-1]
       
+      gene.rank.eff.hash <- hash()
+      print("building eff rank hash")
+      geneIDs = row.names(gene.rank.eff)
+      for (i in 1:nGenes) {
+        geneRank = as.numeric(gene.rank.eff[i,1])
+        gene.rank.eff.hash[[geneIDs[i]]] = geneRank
+      }
       
       #end.time <- Sys.time()
       #time.taken <- end.time - start.time
@@ -593,32 +610,36 @@ Necorr <- function(network.file, expression, description.file,
       #start.time <- Sys.time()
       ###------------------------------------------------------------------------------------------------------------------------
       # hub sub-network
-      cl2 <- makeCluster(nsockets, type="SOCK")
-      registerDoSNOW(cl2)
-      hub.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
-        SourceID <- as.character(network.int[i,1])
-        TargetID <- as.character(network.int[i,2])
-        ranks.sum <- sum(gene.rank.h[SourceID,1], gene.rank.h[TargetID,1])
-        c(SourceID,TargetID,ranks.sum)
+      # cl2 <- makeCluster(nsockets, type="SOCK")
+      # registerDoSNOW(cl2)
+      # hub.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
+        sourceIDs <- as.vector(network.int[,1])
+        targetIDs <- as.vector(network.int[,3])
+        ranks.sum <- rep(1,length(targetIDs))
+      for(i in 1:nrow(network.int)) {
+        ranks.sum[i] <- sum(gene.rank.hash[[sourceIDs[i]]], gene.rank.hash[[targetIDs[i]]])
       }
-      stopCluster(cl2)
-      break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,3]))), Inf)
-      p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE )
+      hub.int.ranks <- data.frame(sourceIDs,targetIDs,ranks.sum)
+      # stopCluster(cl2)
+      break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,2]))), Inf)
+      p2 <- cut( as.numeric(hub.int.ranks[,2]), breaks=break.points, labels=FALSE )
       p2 <- 1 - p2/length(break.points)
       hub.int.ranks <- as.data.frame(cbind(hub.int.ranks,p2))
       hub.int.ranks$p2 <- as.numeric(as.character(hub.int.ranks$p2))
       hub.int.significant = subset(hub.int.ranks, p2 < 0.005)
       write.csv(hub.int.ranks,paste0(subDirFile,sample.l,netname,permutation,"_interactions_prioritization.csv"),quote=FALSE,row.names=FALSE)
       # effector sub-network
-      cl3 <- makeCluster(nsockets, type="SOCK")
-      registerDoSNOW(cl3)
-      eff.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
-        SourceID <- as.character(network.int[i,1])
-        TargetID <- as.character(network.int[i,2])
-        ranks.sum <- sum(gene.rank.eff[SourceID,1], gene.rank.eff[TargetID,1])
-        c(SourceID,TargetID,ranks.sum)
+      # cl3 <- makeCluster(nsockets, type="SOCK")
+      # registerDoSNOW(cl3)
+      # eff.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
+      eff_ranks.sum <- rep(1,length(targetIDs))
+      for(i in 1:nrow(network.int)) {
+        # SourceID <- as.character(network.int[i,1])
+        # TargetID <- as.character(network.int[i,2])
+        eff_ranks.sum <- sum(gene.rank.eff.hash[[sourceIDs[i]]], gene.rank.eff.hash[[targetIDs[i]]])
       }
-      stopCluster(cl3)
+      eff.int.ranks <- data.frame(sourceIDs,targetIDs,eff_ranks.sum)
+      # stopCluster(cl3)
       
       break.points <- c(-Inf, unique(sort(as.numeric(eff.int.ranks[,3]))), Inf)
       p2 <- cut( as.numeric(eff.int.ranks[,3]), breaks=break.points, labels=FALSE )
