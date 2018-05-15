@@ -1,11 +1,10 @@
-
 Necorr <- function(network.file, expression, description.file,
                    condition, metadata, name, 
                    Filelist, #condition list see if still necessary with metadata
                    method = "GCC", permutation = 1000, sigcorr = 0.01,
                    fadjacency = "only",type = "gene",
                    dirtmp="./results/tmp", dirout = './results',
-                   NSockets = 8){
+                   NSockets = 2){
   #' @author Christophe Liseron-Monfils, Andrew Olson
   #' @param expression Expression file in log2 (ratio expression) with row: gene,
   #' first column: type of sample,second column: sample names
@@ -191,7 +190,7 @@ Necorr <- function(network.file, expression, description.file,
     
     ###-----------------------------------------------------------------------------------------
     print("### II - Analysis of the co-expression file and p-value sums")
-    start.time <- Sys.time()
+    #start.time <- Sys.time()
     ###-----------------------------------------------------------------------------------------
     filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.txt")
     pathcoexp <- paste0(dirout, "/", condition, "/", filecoexp)
@@ -203,16 +202,16 @@ Necorr <- function(network.file, expression, description.file,
       print("calculating coexpression")
       int.sig <- multiCorr(m.eset, net = network.int, nsockets = NSockets,
                           methods= method, output = "paired", sigmethod = "two.sided", 
-                          pernum = permutation , verbose = FALSE, cpus = NSockets)
+                          pernum = permutation , verbose = T, cpus = NSockets)
     
     #filecoexp <- paste0(as.character(files[CondNB,1]),"_CorrM_PvalM.txt")
       int.sig.file <- int.sig
       colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
       write.csv(int.sig.file, pathcoexp)
     }
-    end.time <- Sys.time()
-    time.taken <- end.time - start.time
-    print(time.taken)
+    #end.time <- Sys.time()
+    #time.taken <- end.time - start.time
+    #print(time.taken)
     # create a function to generate a continuous color palette
     rbPal <- colorRampPalette(c('yellow','blue'))
     
@@ -874,7 +873,7 @@ multiCorr <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KC
                       nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
   corMAT <- c()
   if (methods == "GCC"){
-    #### NEW GINI CORRLATION CALCULATION
+    #### NEW GINI CORRELATION CALCULATION
     corMAT <- gini(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6)
   }else{
     suppressWarnings(suppressPackageStartupMessages(require(foreach)))
