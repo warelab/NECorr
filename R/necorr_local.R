@@ -170,7 +170,6 @@ Necorr <- function(network.file, expression, description.file,
   factorList <- factortab[,1]
   df <- cbind(as.character(conditionList),as.character(factorList))
   df <- df[!duplicated(df),]
-
   suppressWarnings(suppressPackageStartupMessages(require(foreach)))
   suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
   #files.list <- paste0(dirout,"/",Filelist)
@@ -252,7 +251,7 @@ Necorr <- function(network.file, expression, description.file,
       nsockets = NSockets
       #i <- 1
       #sample.l <- df[i,2]
-      sample.l <- condition
+      sample.l <- df[condition == df[,1],2]
       ###-----------------------------------------------------------------------------------------
       print("### III - Define gene tissue specificity index (TSI) (Yanai 2011, Bioinformatics)")
       #start.time <- Sys.time()
