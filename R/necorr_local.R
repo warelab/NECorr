@@ -126,7 +126,7 @@ Necorr <- function(network.file, expression, description.file,
     }
     #print(treatment.f)
   }
-  print(xcol)
+  #print(xcol)
   treatment.f <- factor(treatment.f, levels = sample.names)
   ###--------------------------------------------------------------------------------------------
   print("### I - Load the network statistics and the gene list")
@@ -165,7 +165,7 @@ Necorr <- function(network.file, expression, description.file,
   m.eset <- as.matrix(eset)
   # m.eset <- m.eset[-grep("NA", rownames(m.eset)),]
   m.eset <- m.eset[, xcol]
-  print(m.eset)
+  #print(m.eset)
   # Loop to measure the importance of gene expression 
   conditionList <-factortab[,2]
   factorList <- factortab[,1]
@@ -370,6 +370,7 @@ Necorr <- function(network.file, expression, description.file,
       ###-----------------------------------------------------------------------------------------------
       print("### IV - Determine the overall interaction importance for each node (gene)")
       ###-----------------------------------------------------------------------------------------------
+      #start.time <- Sys.time()
       importanceFile = paste0(subDirTS, sample.l, netname, 
                               "_", method, "_", permutation, "importance.csv")
       if(file.exists(importanceFile)){
@@ -402,13 +403,13 @@ Necorr <- function(network.file, expression, description.file,
             h[[g2]] <- twistedcor
           }
         }
-        end.time <- Sys.time()
-        time.taken <- end.time - start.time
-        print(time.taken)
-        print(" -- populated hash")
+        #end.time <- Sys.time()
+        #time.taken <- end.time - start.time
+        #print(time.taken)
+        #print(" -- populated hash")
         # add a vector with all the p-value attached to a gene
         # in the co-expression analysis
-        start.time <- Sys.time()
+        #start.time <- Sys.time()
         for (i in 1:length(Genelist)){
           gene = Genelist[i] # get the name of the gene
           trans.cumpvals = fishersMethod(as.numeric(as.vector(h[[gene]])))
