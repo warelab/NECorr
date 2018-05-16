@@ -5,10 +5,9 @@ expression <- "../data/gene_expression_matrix.txt"
 description.file <-"../data/1.Ath.GeneDesc.csv"
 metadata <- "../data/grnmeta.metadata.txt"
 
-
 Necorr(network.file=network.file, expression=expression, 
        description.file=description.file,
-       condition="flower",metadata=metadata, name="test2", NSockets = 8)
+       condition="flower",metadata=metadata, name="test2", NSockets = 4)
 
 #########
 network.file <- "../data/network.txt"

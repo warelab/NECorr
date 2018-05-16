@@ -191,7 +191,7 @@ Necorr <- function(network.file, expression, description.file,
     print("### II - Analysis of the co-expression file and p-value sums")
     #start.time <- Sys.time()
     ###-----------------------------------------------------------------------------------------
-    filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.txt")
+    filecoexp <- paste0(as.character(basename(expression)),"_CorrM_PvalM.csv")
     pathcoexp <- paste0(dirout, "/", condition, "/", filecoexp)
     if (file.exists(pathcoexp)) {
       print(paste0("reusing coexp output file ",pathcoexp))
@@ -251,7 +251,8 @@ Necorr <- function(network.file, expression, description.file,
       nsockets = NSockets
       #i <- 1
       #sample.l <- df[i,2]
-      sample.l <- df[condition == df[,1],2]
+      #sample.l <- df[condition == df[,1],2]
+      sample.l <- condition
       ###-----------------------------------------------------------------------------------------
       print("### III - Define gene tissue specificity index (TSI) (Yanai 2011, Bioinformatics)")
       #start.time <- Sys.time()
