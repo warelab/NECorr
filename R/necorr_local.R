@@ -252,7 +252,7 @@ Necorr <- function(network.file, expression, description.file,
       nsockets = NSockets
       #i <- 1
       #sample.l <- df[i,2]
-      sample.l <- df[condition == df[,1],2]
+      sample.l <- condition #df[condition == df[,1],2]
       ###-----------------------------------------------------------------------------------------
       print("### III - Define gene tissue specificity index (TSI) (Yanai 2011, Bioinformatics)")
       #start.time <- Sys.time()
@@ -274,17 +274,16 @@ Necorr <- function(network.file, expression, description.file,
       act <- IUT(m.eset, nreplics, which(sample.names == sample.l), 1, 0.5, -1)
       rep <- IUT(m.eset, nreplics, which(sample.names == sample.l), -1, 0.5, -1)
       #### do following steps if the expression if act and/or rep are not null
-    
       # Rank the tissue selective genes using the Tissue Selective Index
       # for each gene TSI for activation and modify for tissue repression
       m.eset = as.data.frame(m.eset)
       meansFactor <- do.call("cbind", tapply(1:ncol(m.eset), 
                                              treatment.f, 
                                              function(x) rowMeans(m.eset[x])))
-    
       # Tissue-selective genes(up)
       if(length(act[which(act==TRUE)])>0){
         act <- act[which(names(act) %in% rownames(meansFactor))]
+        
         StA <- length(meansFactor[names(act[which(act==TRUE)]),])
         StB <- length(colnames(meansFactor))
         if( StA > StB){
@@ -324,7 +323,6 @@ Necorr <- function(network.file, expression, description.file,
       }
       # Vector of tissue-selectivity
       ts <- c(tsr,tsi) #2 expression specificity
-      #print(ts)
       if(!is.null(ts)){
         write.csv(meansFactor[names(c(tsr.order,tsi.order)),],
                   paste0(subDirTS, 
@@ -413,7 +411,12 @@ Necorr <- function(network.file, expression, description.file,
           gene = Genelist[i] # get the name of the gene
           trans.cumpvals = fishersMethod(as.numeric(as.vector(h[[gene]])))
           cumpvals = - log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
-          int.pvals[gene]=cumpvals
+          if (is.na(cumpvals)){
+            int.pvals[gene] = 0;
+          }
+          else {
+            int.pvals[gene]=cumpvals
+          }
         }
         print(" -- calculated fishersMethod")
         write.csv(int.pvals,importanceFile)
@@ -433,7 +436,6 @@ Necorr <- function(network.file, expression, description.file,
       print("### VI Normalize each column between [0,1] using the some")
       #start.time <- Sys.time()
       ###----------------------------------------------------------------------------------------
-      
       int.pvals = ScalN(int.pvals)  #1 interaction p-values
       ts = ScalN(ts) #2 expression specificity
       BetwC = ScalN(BetwC) #3 betweeness
@@ -441,9 +443,9 @@ Necorr <- function(network.file, expression, description.file,
       ClusCoef = ScalN(ClusCoef)  #5 transitivity
       PageRank <- ScalN(PageRank)
       
-      int.pvals = as.data.frame(int.pvals)  #1 interaction p-values
+      #int.pvals = as.data.frame(int.pvals)  #1 interaction p-values
       ts = as.data.frame(ts); #2 expression specificity
-      print(ts)                         #########################################################
+      #print(ts)                         #########################################################
       BetwC = as.data.frame(BetwC) #3 betweeness
       Conn = as.data.frame(Conn) #4 connectivity
       ClusCoef = as.data.frame(ClusCoef)  #5 transitivity
@@ -984,7 +986,7 @@ DE.ranking <- function(exps,GeneList,factortab,sample.l,sample.names, exps.file 
 NetTopology <-function(network){
   #the network should be a list of interactions space by a line
   suppressWarnings(suppressPackageStartupMessages(require(igraph)))
-  # script partly adapted from https://gist.github.com/mhawksey/1682306
+  # script partly adapted from https://gist.github.com/mhawksey/16-2306
   # author: Martin Hawksey 
   
   # pass to igraph the network that would transform in a graph object
@@ -1069,16 +1071,16 @@ IUT<-function(DATA,nrreplics,target,updown,alpha,mc){
 }
 
 # tissue-selective upregulated genes from Tissue Specificty index (Yanai et al, 2005)
-numeratorTSI = function(x) 2**x/max(2**x)
-denominator = function(x) length(2**x)-1
+numeratorTSI = function(x) x/max(x)
+denominator = function(x) length(x)-1
 TSI = function(x) sum(1-numeratorTSI (x))/denominator(x)
 
 # tissue-selective downregulated genes (Liseron, 2013)
-numeratorTSR = function(x) (2**x - 2**min(x))/(2**max(x))
+numeratorTSR = function(x) (x - min(x))/(max(x))
 TSR = function(x) sum(numeratorTSR(x))/denominator(x)
 
 # rescaling data in a range between 0 to 1
-ScalN = function(x) (x - min(x))/(max(x) - min(x))
+ScalN = function(x, ...) (x - min(x, ...))/(max(x, ...) - min(x, ...))
 
 # combine p-values Fisher method to have overall importance of 
 # this node in the studied tissue (using code from Michael Love code) 
