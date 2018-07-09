@@ -49,7 +49,7 @@ The NECorr packages requires the R version 3.4.2 or higher and a standard comput
 
 #### Installing R version 3.4.2 on MacOs
 
-the latest version of R can be installed as follows`:
+the latest version of R can be installed as follows:
 
 ```
 wget https://cran.rstudio.com/bin/macosx/R-3.4.2.pkg
@@ -59,12 +59,17 @@ rm R-3.2.3.pkg
 
 Two minutes will be required to install R on *Mac Os*.
 
+#### Installing R on Linux (yum package manager)
+```
+sudo yum install R.x86_64
+```
+
 #### Package dependencies
 
 Users should install the following packages prior to installing `NECorr`, from an `R` terminal:
 
 ```
-install.packages(c("Rcpp"", "RcppParallel", "klaR", "igraph", , "foreach", "doSNOW", "RColorBrewer", "gplots", "devtools", "hash"))
+install.packages(c("Rcpp", "RcppParallel", "klaR", "igraph", "foreach", "doSNOW", "RColorBrewer", "gplots", "devtools", "hash"))
 source("https://bioconductor.org/biocLite.R")
 biocLite(c("Biobase", "limma", "supraHex"))
 install.packages("dnet")
