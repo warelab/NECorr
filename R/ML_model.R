@@ -1,7 +1,9 @@
+Netgene.file <- "SteleNet.txt"
+Netgene <- read.table(Netgene.file,header = T, row.names = 1)
+exprs<- as.matrix(read.table("Radial_expression.txt", header=TRUE,sep="\t",row.names=1))
+tab.Param <- read.table("8_stele_root.tissue_GRNnPnov13_GCC_10000_gene_Std_param.txt",
+                        header = T, sep ="\t",row.names = 1)
 # clean working place and load required libraries and functions
-rm(list=ls())
-#setwd("./")
-setwd("/Users/cliseron/files2share/-a-clm_Code_Repository/NECorr_validations")
 library(limma)
 library(Biobase)
 library(ROCR)
@@ -13,8 +15,6 @@ ScalN = function(x) (x - min(x))/(max(x) - min(x))
 ####
 # load positive and negative set (generate a file that can be reused for purpose)
 # list of gene in the network here we used the expressiion file for but this can be changed in a vector
-Netgene.file <- "SteleNet.txt"
-Netgene <- read.table(Netgene.file,header = T, row.names = 1)
 #exps = exps[-1,]
 Netgene <- data.matrix(Netgene)
 # positive set for the condition
@@ -37,7 +37,7 @@ data.lab <- data.lab[,-1]
 ####    B - Differential expression
 ####
 # expression file from microarrays in this case
-exprs<- as.matrix(read.table("Radial_expression.txt", header=TRUE,sep="\t",row.names=1))
+
 # parse expression data to only have the gene that are in the network - load the genes that are in the networks
 exprs <- exprs[rownames(Netgene),]
 # DE (differential expression)
@@ -56,8 +56,7 @@ de$B <- ScalN(de$B)
 ####    C - Parameter (factor) use to define the phenotype in the model
 ####
 # load parameter table: tissue specificity, co-expression, topology
-tab.Param <- read.table("8_stele_root.tissue_GRNnPnov13_GCC_10000_gene_Std_param.txt",
-                        header = T, sep ="\t",row.names = 1)
+
 # merge data label (phenotype) and the parameter table
 tab.Param <- merge(data.lab,tab.Param, by =0, all =F)
 colnames(tab.Param)[2] <- "phenotype"
