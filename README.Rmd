@@ -23,9 +23,9 @@ NECorr is a R package based on multiple-criteria decision-making algorithms. Wit
 # Repo Contents
 
 - [R](./R): `R` package code.
-- [docs](./docs): package documentation.
 - [man](./man): package manual for help in R session.
-- [tests](./tests): `R` unit tests written using the `testthat` package.
+-[data](./data): test data using dummies datasets.
+- [tests](./tests): `R` test with the data.
 
 
 # System Requirements
