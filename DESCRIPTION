@@ -3,9 +3,9 @@ Type: Package
 Title: Gene Regulatory Network Correlations
 Version: 0.2
 Date: 2018-07-09
-Authors@R: c(person("Christophe", "Liseron-Monfils", role = c("aut", "cre"),
+Authors@R: c(person("Christophe", "Liseron-Monfils", role = c("ctb"),
        email = "cliseron@cshl.edu"),
-	   	 person("Andrew", "Olson", role=c("ctb"),
+	   	 person("Andrew", "Olson", role=c("aut", "cre"),
        email="olson@cshl.edu"))
 Maintainer: Andrew Olson <olson@cshl.edu>
 Description: NECorr uses molecular networks and transcriptomic
