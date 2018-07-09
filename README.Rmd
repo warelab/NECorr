@@ -96,7 +96,7 @@ From an `R` session, type:
 
 ```
 require(devtools)
-install_github('warelab/NECorr', build_vignettes=TRUE)  # install mgc with the vignettes
+install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=FALSE, upgrade_dependencies=FALSE)  # install NECorr with the vignettes
 ```
 
 The package should take approximately 20 seconds to install with vignettes on a recommended computer. 
