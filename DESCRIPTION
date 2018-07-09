@@ -6,14 +6,22 @@ Date: 2016-12-06
 Author: Andrew Olson <olson@cshl.edu> [aut, cre],
   Christophe Liseron-Monfils <cliseron@cshl.edu> [aut, cre]
 Maintainer: <olson@cshl.edu>
-Description: ECorr uses molecular network and a transcriptomic
-    table to define the backbone of a biological process regulation
+Description: NECorr uses molecular networks and transcriptomic
+    data to define the backbone of a biological process regulation
     through (NECorr-hub) and putative regulator (NeECorr-Reg). Implements the Gini Correlation Coefficient as in http://www.plantphysiol.org/content/160/1/192.full
 License: MIT
 LazyData: TRUE
 Imports:
-    Rcpp,
+    Rcpp
     RcppParallel
+    klaR
+    igraph
+    dnet
+    foreach
+    doSNOW
+    RColorBrewer
+    gplot
+    devtools
 LinkingTo:
-    Rcpp, RcppParallel
+    Rcpp, RcppParallel, klaR, igraph, dnet, foreach, doSNOW, RColorBrewer, gplots, devtools
 SystemRequirements: GNU make, C++11
