@@ -5,8 +5,8 @@ Version: 0.2
 Date: 2018-07-09
 Authors@R: c(person("Christophe", "Liseron-Monfils", role = c("aut", "cre"),
        email = "cliseron@cshl.edu"),
-	   	 person("Minh", "Tang", role=c("aut", "cre"),
-       email="olson@cshl.edu")
+	   	 person("Andrew", "Olson", role=c("aut", "cre"),
+       email="olson@cshl.edu"))
 Maintainer: Andrew Olson <olson@cshl.edu>
 Description: NECorr uses molecular networks and transcriptomic
     data to define the backbone of a biological process regulation
