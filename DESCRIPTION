@@ -3,25 +3,20 @@ Type: Package
 Title: Gene Regulatory Network Correlations
 Version: 0.2
 Date: 2018-07-09
-Authors@R: c(person("Christophe", "Liseron-Monfils", role = c("ctb"),
-       email = "cliseron@cshl.edu"),
-	   	 person("Andrew", "Olson", role=c("aut", "cre"),
-       email="olson@cshl.edu"))
+Authors@R: c(person("Christophe", "Liseron-Monfils", role = c("ctb"), email = "cliseron@cshl.edu"),
+    person("Andrew", "Olson", role=c("aut", "cre"), email="olson@cshl.edu"))
 Maintainer: Andrew Olson <olson@cshl.edu>
-Description: NECorr uses molecular networks and transcriptomic
-    data to define the backbone of a biological process regulation
-    through (NECorr-hub) and putative regulator (NeECorr-Reg). Implements the Gini Correlation Coefficient as in http://www.plantphysiol.org/content/160/1/192.full
+Description: NECorr uses molecular networks and transcriptomic data to define 
+    the backbone of a biological process regulation through (NECorr-hub) 
+    and putative regulator (NeECorr-Reg). 
+    Implements the Gini Correlation Coefficient as in http://www.plantphysiol.org/content/160/1/192.full
+biocViews: 
 Depends: R (>= 3.4.0)
 License: MIT
 LazyData: TRUE
 Imports:
     Rcpp,
     RcppParallel,
-    devtools
-Encoding: UTF-8
-VignetteBuilder: knitr
-RoxygenNote: 6.0.1
-Suggests:    
     klaR,
     igraph,
     dnet,
@@ -29,4 +24,9 @@ Suggests:
     doSNOW,
     RColorBrewer,
     gplot
+Encoding: UTF-8
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1
+Suggests:
+    testthat   
 SystemRequirements: GNU make, C++11
