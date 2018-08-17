@@ -28,9 +28,11 @@ Imports:
     Biobase,
     limma,
     supraHex
-Encoding: UTF-8
-VignetteBuilder: knitr
-RoxygenNote: 6.0.1
 Suggests:
-    testthat   
+    testthat 
+Encoding: UTF-8  
 SystemRequirements: GNU make, C++11
+License: MIT
+BugReports: https://github.com/warelab/NECorr/issues
+LazyData: true
+RoxygenNote: 6.0.1.9000
