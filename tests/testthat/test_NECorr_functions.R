@@ -1,3 +1,13 @@
+library(NECorr)
+
+library(testthat)
+
+test_that("test that works", {
+
+    expect_equal(2+3, 5)
+
+})
+
 ## network.file <- "../data/network.txt"
 ## expression <- "../data/expression.txt"
 ## description.file <- "../data/description.csv"
