@@ -27,12 +27,10 @@ Imports:
     hash, 
     Biobase,
     limma,
-    supraHex
+    supraHex, 
+    Rgraphviz
 Suggests:
     testthat 
-Encoding: UTF-8  
 SystemRequirements: GNU make, C++11
-License: MIT
 BugReports: https://github.com/warelab/NECorr/issues
-LazyData: true
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 6.1.0
