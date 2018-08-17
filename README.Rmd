@@ -1,9 +1,3 @@
----
-title: "README"
-author: "Christophe Liseron-Monfils"
-date: "7/5/2018"
-output: html_document
----
 
 # Network Correlation Analysis (NECorr)
 
@@ -125,4 +119,10 @@ tests/test.script.R
 
 For citing code or the paper, please use [this citation](https://www.biorxiv.org/content/early/2018/05/21/326868).
 
+---
+title: "README"
+author: "Christophe Liseron-Monfils"
+date: "7/5/2018"
+output: html_document
+---
 
