@@ -1,4 +1,17 @@
 
+#' @name NECorr
+#' @title Output standard human genome seqlengths
+#' @description
+#'
+#' @description NECorr helps discover candidate genes that could be
+#' important for specific conditions.
+#' The principal inputs are the expression data and the network file.
+#' The expression data should start with 3 header columns.
+#' The first column describes the conditions. Each condition will be
+#' treated separately for the co-expression analysis
+#' The output of the program will be generated in a result folder generated
+#' in the working path
+#'
 #' @author Christophe Liseron-Monfils, Andrew Olson
 #' @param expression Expression file in log2 (ratio expression) with row: gene,
 #' first column: type of sample,second column: sample names
@@ -12,18 +25,10 @@
 #' @param lmiR List of miRNAs
 #' @param method Method used for co-expression correlation: GCC, MINE, PCC,
 #' SCC or KCC
-
 #' @param dirout directory for the results
 #' @param fadjacency correlation with all combination (all) or network
 #' combination only (only)
-#' @description NECorr helps discover candidate genes that could be
-#' important for specific conditions.
-#' The principal inputs are the expression data and the network file.
-#' The expression data should start with 3 header columns.
-#' The first column describes the conditions. Each condition will be
-#' treated separately for the co-expression analysis
-#' The output of the program will be generated in a result folder generated
-#' in the working path
+#' @export
 
 Necorr <- function(network.file, expression, description.file,
                    condition, metadata, name,
