@@ -5,12 +5,16 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // gini
 DataFrame gini(DataFrame edges, NumericMatrix expression, int bootstrapIterations, double statCutoff);
-RcppExport SEXP NECorr_gini(SEXP edgesSEXP, SEXP expressionSEXP, SEXP bootstrapIterationsSEXP, SEXP statCutoffSEXP) {
+RcppExport SEXP _NECorr_gini(SEXP edgesSEXP, SEXP expressionSEXP, SEXP bootstrapIterationsSEXP, SEXP statCutoffSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< DataFrame >::type edges(edgesSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type expression(expressionSEXP);
     Rcpp::traits::input_parameter< int >::type bootstrapIterations(bootstrapIterationsSEXP);
@@ -18,4 +22,14 @@ BEGIN_RCPP
     rcpp_result_gen = Rcpp::wrap(gini(edges, expression, bootstrapIterations, statCutoff));
     return rcpp_result_gen;
 END_RCPP
+}
+
+static const R_CallMethodDef CallEntries[] = {
+    {"_NECorr_gini", (DL_FUNC) &_NECorr_gini, 4},
+    {NULL, NULL, 0}
+};
+
+RcppExport void R_init_NECorr(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
 }

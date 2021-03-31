@@ -24,7 +24,7 @@ NECorr is a R package based on multiple-criteria decision-making algorithms. Wit
 
 - [R](./R): `R` package code.
 - [man](./man): package manual for help in R session.
-- [data](./data): test data using dummies datasets.
+- [int](./data): test data using dummies datasets and model.
 - [tests](./tests): `R` test with the data.
 
 
@@ -42,7 +42,7 @@ The runtimes below are generated using a computer with the recommended specs (16
 This package is supported for *Mac OS*, *Windows* and *Linux* operating systems. The package has been tested on the following systems:
 
 Linux: Redhat RHEL 7.4  
-Mac OSX: OS X 10.13.5
+Mac OSX: OS X 11.2.3
 
 
 The NECorr packages requires the R version 3.4.2 or higher and a standard computer with enough RAM to support the operations defined by a user. For minimal performance, this will be a computer with about 1 GB of RAM. 
