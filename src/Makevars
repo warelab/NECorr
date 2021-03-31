@@ -1,4 +1,2 @@
 CXX_STD = CXX11
 PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::RcppParallelLibs()")
-PKG_CPPFLAGS += $(shell ${R_HOME}/bin/Rscript -e "Rcpp:::CxxFlags()")
-PKG_CPPFLAGS += $(shell ${R_HOME}/bin/Rscript -e "Rcpp:::CxxFlags()" | sed 's/Rcpp/RcppParallel/')

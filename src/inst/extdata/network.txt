@@ -1,0 +1,10 @@
+source	type	target
+ga	PD	gb
+ga	PD	gc
+gb	PD	gc
+gd	PD	ga
+gh	PD	gi
+gh	PD	gc
+gb	PD	gh
+gi	PD	gc
+ge	PD	ga

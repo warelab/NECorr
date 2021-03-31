@@ -1,9 +1,10 @@
-// [[Rcpp::depends(RcppParallel)]]
 #include <Rcpp.h>
 #include <RcppParallel.h>
+#include <iostream>
 #include <algorithm>
 #include <map>
 
+//[[Rcpp::depends(RcppParallel)]]
 using namespace Rcpp;
 using namespace RcppParallel;
 using namespace std;
@@ -12,19 +13,19 @@ using namespace std;
 struct expressionRank : public Worker {
   const RMatrix<double> data;
   RMatrix<int> rank;
-
+  
   expressionRank(const NumericMatrix data, IntegerMatrix rank)
     : data(data), rank(rank) {
   }
-
+  
   void operator()(size_t begin, size_t end) {
     for(size_t i = begin; i < end; i++) {
       RMatrix<double>::Row row = data.row(i);
       RMatrix<int>::Row rankRow = rank.row(i);
-
+      
       vector<double> sortedRow(row.length());
       partial_sort_copy(row.begin(),row.end(),sortedRow.begin(),sortedRow.end());
-
+      
       for(int k=0;k<row.length();k++) {
         vector<double>::iterator it = find(sortedRow.begin(),sortedRow.end(),row[k]);
         int r = it - sortedRow.begin();
@@ -45,16 +46,16 @@ struct expressionOffsets : public Worker {
   const CharacterVector sourceNames, targetNames;
   map<string,int> nameToOffset;
   IntegerVector source, target;
-
+  
   expressionOffsets(const CharacterVector sourceNames, const CharacterVector targetNames,
                     map<string,int> nameToOffset,
                     IntegerVector source, IntegerVector target)
     : sourceNames(sourceNames), targetNames(targetNames), nameToOffset(nameToOffset), source(source), target(target)  {
   }
-
+  
   void operator()(size_t begin, size_t end) {
     // iterate over the pairs and store the offset or -1
-
+    
     for(size_t i = begin; i < end; i++) {
       string s = as<string>(sourceNames[i]);
       map<string,int>::iterator it = nameToOffset.find(s);
@@ -94,13 +95,13 @@ double confidenceIntervalAndPvalue(double originalGCC, vector<double> &xData, ve
   vector<int> yRank (n);
   vector<int> xIdx2 (n);
   vector<int> yIdx2 (n);
-
+  
   vector<vector<int> > xRankPos (n);
   vector<vector<int> > yRankPos (n);
-
+  
   vector<double> scoreBins2000 (2000);
   vector<double> scoreBins20 (20);
-
+  
   for(int i=0;i<n;i++) {
     xRank[xIdx[i]] = i;
     yRank[yIdx[i]] = i;
@@ -201,9 +202,9 @@ struct scoreEdges : public Worker {
   const RVector<double> wt;
   const int bootstrapIterations;
   const double statCutoff;
-
+  
   RVector<double> gini, pvalue, mingini, maxgini;
-
+  
   scoreEdges(const IntegerVector source, const IntegerVector target,
              const NumericMatrix data, const IntegerMatrix rank, const NumericVector wt,
              const int bootstrapIterations, const double statCutoff,
@@ -211,7 +212,7 @@ struct scoreEdges : public Worker {
     : source(source), target(target), data(data), rank(rank), wt(wt),
       bootstrapIterations(bootstrapIterations), statCutoff(statCutoff),
       gini(gini), pvalue(pvalue), mingini(mingini), maxgini(maxgini) {}
-
+  
   void operator()(size_t begin, size_t end) {
     for(size_t i=begin; i < end; i++) {
       gini[i] = 0.0;
@@ -252,23 +253,35 @@ struct scoreEdges : public Worker {
   }
 };
 
-// [[Rcpp::export]]
+//' Do values in a numeric vector fall in specified range?
+//'
+//' This is a shortcut for `x >= left & x <= right`, implemented
+//' efficiently in C++ for local values, and translated to the
+//' appropriate SQL for remote tables.
+//'
+//' @param edges dataframe with the edges with 3 columns: source, interaction and
+//' target
+//' @param expression, expression table containing the genes
+//' @param bootstrapIterations number of bootstrap
+//' @param statCutoff stat cut-off p-value
+//' @export
+// [[Rcpp::export(rng = false)]]
 DataFrame gini(DataFrame edges, NumericMatrix expression,
                int bootstrapIterations, double statCutoff) {
   // edges has (at least) two vectors: source and target
   // each is a list of gene identifiers
   // The expression data matrix has one row per gene, one column per sample
-
+  
   int nSamples = expression.ncol();
   int nGenes = expression.nrow();
   int nPairs = edges.nrows();
-
+  
   // calculate weight vector in advance
   NumericVector wt (nSamples);
   for(int j=0;j<nSamples;j++) {
     wt[j] = (double) 2*(j+1) - nSamples - 1;
   }
-
+  
   // create a map for gene names
   List dimNames = expression.attr("dimnames");
   vector<string> geneNames = dimNames[0];
@@ -276,7 +289,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   for(int i=0;i<nGenes;i++) {
     nameToOffset[geneNames[i]]=i;
   }
-
+  
   // map gene source and target gene names to offsets in the expression matrix
   IntegerVector source(nPairs);
   IntegerVector target(nPairs);
@@ -284,12 +297,12 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   CharacterVector targetNames = edges["target"];
   expressionOffsets expressionOffsets(sourceNames, targetNames, nameToOffset, source, target);
   parallelFor(0,nPairs,expressionOffsets);
-
+  
   // rank the samples for each gene
   IntegerMatrix rank(nGenes, nSamples);            // allocate space
   expressionRank expressionRank(expression, rank); // initialize worker
   parallelFor(0, nGenes, expressionRank);          // run with parallelFor
-
+  
   // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
   NumericVector pvalue(nPairs);
@@ -297,7 +310,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   NumericVector maxgini(nPairs);
   scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue, mingini, maxgini);
   parallelFor(0, nPairs, scoreEdges);
-
+  
   return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["pvalue"]=pvalue, _["mingini"]=mingini, _["maxgini"]=maxgini);
 }
 
