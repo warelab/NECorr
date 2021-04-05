@@ -52,6 +52,9 @@ combination only (only)}
 
 \item{NSockets}{number of sockets}
 }
+\value{
+res
+}
 \description{
 NECorr helps discover candidate genes that could be
 important for specific conditions.
