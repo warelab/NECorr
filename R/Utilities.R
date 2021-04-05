@@ -1,3 +1,188 @@
+#' effector_significance
+#'
+#' @param eff.m.param table with scale parameters for gene ranking
+#' @param Desc description table of the genes 
+#' @param j.nB predictive model based on Naives Bayes
+#' @param sample.l sample name
+#' @nGenes number of genes in hub gene ranking
+#' @description define the ranking of the effector genes 
+#' @return res list of 1.hash effector gene ranking and 2.table of ranking and descriptions
+effector_significance <- function(eff.m.param, Desc, j.nB, sample.l, nGenes){
+  prob.pred <- predict(j.nB, type="prob", newdata = eff.m.param)
+  gene.rank.eff <- (prob.pred$posterior)[,2]
+  #
+  gene.rank.eff = gene.rank.eff[order(gene.rank.eff, decreasing=TRUE)]
+  gene.rank.eff = as.data.frame(gene.rank.eff)
+  # merge description and ranking
+  gene.rank.e.description <- left_join(rownames_to_column(gene.rank.eff),
+                                       rownames_to_column(Desc),
+                                       by = ("rowname" = "rowname"))
+  gene.rank.e.description <- as.data.frame(gene.rank.e.description)
+  colnames(gene.rank.eff)[1] <- sample.l
+  #
+  gene.rank.eff.hash <- hash()
+  #print("building eff rank hash")
+  geneIDs <- row.names(gene.rank.eff)
+  for (i in 1:nGenes){
+    geneRank <- as.numeric(gene.rank.eff[i,1])
+    gene.rank.eff.hash[[geneIDs[i]]] <- geneRank
+  }
+  res <- list(rank=gene.rank.eff.hash, description=gene.rank.e.description)
+  return(res)
+}
+
+
+#' hub_edge_significance
+#'
+#' @param network.int network file
+#' @param gene.rank.hash gene ranking hash
+#' @description define the hub edge ranking
+#' @return res 
+hub_edge_significance <- function(network.int=network.int, gene.rank.hash=gene.rank.hash){
+  # hub.int.ranks <- foreach(i=1:nrow(network.int),.combine='rbind' )%dopar%{
+  sourceIDs <- as.vector(network.int[,1])
+  targetIDs <- as.vector(network.int[,2])
+  ranks.sum <- rep(1,length(targetIDs))
+  for(i in 1:nrow(network.int)){
+    ranks.sum[i] <- sum(gene.rank.hash[[sourceIDs[i]]], gene.rank.hash[[targetIDs[i]]])
+  }
+  hub.int.ranks <- data.frame(sourceIDs,targetIDs,ranks.sum)
+  # stopCluster(cl2)
+  break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,3]))), Inf)
+  p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE )  ####### !!!!!
+  p2 <- 1 - p2/length(break.points)
+  hub.int.ranks <- as.data.frame(cbind(hub.int.ranks,p2))
+  hub.int.ranks$p2 <- as.numeric(as.character(hub.int.ranks$p2))
+  res <- hub.int.ranks
+  return(res)
+}
+
+#' effector_edge_significance
+#'
+#' @param network.int network data
+#' @param gene.rank.eff.hash gene ranking for the effector in a hash
+#' @description define the edge ranking around the effectors
+#' @return res
+effector_edge_significance <- function(network.int=network.int, 
+                                       gene.rank.eff.hash=gene.rank.eff.hash){
+  targetIDs <- as.vector(network.int[,2])
+  eff_ranks.sum <- rep(1,length(targetIDs))
+  for(i in 1:nrow(network.int)) {
+    sourceIDs <- as.character(network.int[i,1])
+    targetIDs <- as.character(network.int[i,2])
+    eff_ranks.sum <- sum(gene.rank.eff.hash[[sourceIDs[i]]], 
+                         gene.rank.eff.hash[[targetIDs[i]]])
+  }
+  eff.int.ranks <- data.frame(sourceIDs, targetIDs, eff_ranks.sum)
+  # stopCluster(cl3)
+  break.points <- c(-Inf, unique(sort(as.numeric(eff.int.ranks[,3]))), Inf)
+  p2 <- cut( as.numeric(eff.int.ranks[,3]), breaks=break.points, labels=FALSE )
+  p2 <- 1 - p2/length(break.points)
+  eff.int.ranks <- as.data.frame(cbind(eff.int.ranks,p2))
+  eff.int.ranks$p2 <- as.numeric(as.character(eff.int.ranks$p2))
+  res <- eff.int.ranks
+  return(res)
+}
+
+
+#' activator_significant
+#'
+#' @param hub.int.significant significance of the hub genes
+#' @param network.int netowrk edges
+#' @Desc description file genes and gene names
+#' @description define the activator significance
+#' @return res 
+activator_significant <- function(hub.int.significant=hub.int.significant, 
+                                  network.int=network.int,
+                                  Desc=Desc){
+  # find genes that are significant in the hub subnetwork in the complete network
+  sig.hub <- unique(c(as.character(hub.int.significant$V1), 
+                      as.character(hub.int.significant$V2)))
+  sc.sig.hub <- subset(network.int, network.int[,1] %in% sig.hub)
+  tg.sig.hub <- subset(network.int, network.int[,2] %in% sig.hub)
+  net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
+  
+  ## change the names of the hub gene in the extented hub network using source genes
+  change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
+  tmp<-as.character(net.extension.sig.hub[,1])
+  tmp[change.sig.hubNames]<-"sig"
+  net.extension.sig.hub[,1] <- tmp
+  
+  ## change the names of the hub gene in the extend ed hub network using target genes
+  change.sig.hubNames <- net.extension.sig.hub[,2] %in% sig.hub
+  tmp <- as.character(net.extension.sig.hub[,2])
+  tmp[change.sig.hubNames] <- "sig"
+  net.extension.sig.hub[,2] <- tmp
+  
+  ## network extended to putative regulator using source genes
+  act.m.param <- net.extension.sig.hub
+  sc.count <- rle(sort( act.m.param[,1] ))
+  act.m.param$Count <- sc.count[ match( act.m.param[,1] , sc.count ) ]
+  
+  # gene ranking of linked to hub nodes
+  gene.rank.act <- cbind(sc.count$values, sc.count$lengths)
+  gene.rank.act <- gene.rank.act[order(as.numeric(gene.rank.act[,2]), decreasing=TRUE),]
+  gene.rank.act <- gene.rank.act[ - which(gene.rank.act[,1] == "sig"),]
+  
+  # add the genes that have 20% of the genes linked to hub genes
+  gene.rank.act.significant <- gene.rank.act[which(gene.rank.act[,2] >= (length(sig.hub)*0.20)),]
+  
+  # write the putative activator genes
+  gene.rank.act.b <- as.data.frame(gene.rank.act)
+  gene.rank.act.description <- left_join(rownames_to_column(gene.rank.act.b), 
+                                         rownames_to_column(Desc), 
+                                         by = ("rowname" = "rowname"))
+  gene.rank.act.description <- as.data.frame(gene.rank.act.description)
+  res <- list(rank=gene.rank.act.significant, description=gene.rank.act.description)
+  return(res)
+}
+
+#' linked_act_hub_net
+#'
+#' @param hub.int.significant significant network of the hub genes
+#' @param gene.rank.act.significant the ranking of the activator genes
+#' @param network.int full gene network
+#' @return act.net
+linked_act_hub_net <- function(hub.int.significant=hub.int.significant,
+                               gene.rank.act.significant=gene.rank.act.significant,
+                               network.int=network.int){
+  sig.hub <- unique(c(as.character(hub.int.significant$V1), 
+                      as.character(hub.int.significant$V2)))
+  sc.sig.hub <- subset(network.int, network.int[,1] %in% sig.hub)
+  tg.sig.hub <- subset(network.int, network.int[,2] %in% sig.hub)
+  net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
+  act.net.1 <- subset(
+    net.extension.sig.hub,
+    net.extension.sig.hub[,1] %in% as.vector(as.character(gene.rank.act.significant[,1])))
+  act.net.2 <- subset(
+    net.extension.sig.hub,
+    net.extension.sig.hub[,2] %in% as.vector(as.character(gene.rank.act.significant[,1])))
+  act.net.pre <- rbind(act.net.1,act.net.2)
+  meanSig <- mean(as.vector(as.numeric(as.character(hub.int.significant$V3))))
+  act.net <- cbind(act.net.pre,
+                   rep(meanSig,nrow(act.net.pre)),
+                   rep("act",nrow(act.net.pre)))
+  colnames(act.net) <- c("source","target","score","node.type")
+  return(act.net)
+}
+
+#' linked_eff_hub_net
+#'
+#' @param hub.int.significant significant network of the hub genes
+#' @param eff.int.significant significant network of the effector genes
+#'
+#' @return eff.net
+linked_eff_hub_net <- function(hub.int.significant=hub.int.significant,
+                               eff.int.significant=eff.int.significant){
+  sig.hub <- unique(c(as.character(hub.int.significant$V1), 
+                      as.character(hub.int.significant$V2)))
+  sc.sig.eff <- subset(eff.int.significant, eff.int.significant$V1 %in% sig.hub)
+  tg.sig.eff <- subset(eff.int.significant, eff.int.significant$V2 %in% sig.hub)
+  eff.net.pre <- rbind(sc.sig.eff,tg.sig.eff)
+  eff.net <- cbind(eff.net.pre[,1],eff.net.pre[,2],eff.net.pre[,3], rep(nrow(eff.net.pre)))
+  return(eff.net)
+}
+
 #' indexing.network
 #' @param tab expression table
 #' @param network network needed to be indexed
@@ -146,3 +331,5 @@ fishersMethod <- function(x) {
   res <- pchisq(-2 * sum(log(x)),df=2*length(x),lower.tail=FALSE)
   return(res)
 }
+
+
