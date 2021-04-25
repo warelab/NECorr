@@ -6,7 +6,8 @@
 \usage{
 activator_significant(
   hub.int.significant = hub.int.significant,
-  network.int = network.int
+  network.int = network.int,
+  Desc = Desc
 )
 }
 \arguments{

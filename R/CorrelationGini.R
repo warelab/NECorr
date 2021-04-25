@@ -17,90 +17,106 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
                                pernum = 0,
                                sigmethod = c("two.sided","one.sided"),
                                output = c("matrix","paired")){
-  if (cpus > 1) {
-    #   library(snowfall)
-  }
-  if (pernum == 0){
-    sigmethod <- "two.sided"
-  }
-  if (!is.matrix(GEMatrix) | !is.numeric(GEMatrix)){
-    stop("Error: GEMatrix in cor.matrix function is not matrix or Error: GEMatrix is not numeric")
-  }
-  if (length(rownames(GEMatrix)) == 0) {
-    rownames(GEMatrix) <- seq(1, dim(GEMatrix)[1], by = 1)
-  }
-  VariableNum <- nrow(GEMatrix)
-  SampleSize <- ncol(GEMatrix)
-  if (VariableNum <= 1 || SampleSize <= 1) {
-    stop("Error:the number of variable is less than 2, or the number of observation is less than 2")
-  }
-  if (style == "pairs.between" || style =="pairs.only") {
-    if (length(which(is.na(var1.id) == TRUE)) > 0 | length(which(is.na(var1.id) ==  TRUE)) > 0) {
-      stop("Error: no variable IDs are given")
+  tryCatch(
+    expr = {
+      if (cpus > 1) {
+        #   library(snowfall)
+      }
+      if (pernum == 0){
+        sigmethod <- "two.sided"
+      }
+      if (!is.matrix(GEMatrix) | !is.numeric(GEMatrix)){
+        stop("Error: GEMatrix in cor.matrix function is not matrix or Error: GEMatrix is not numeric")
+      }
+      if (length(rownames(GEMatrix)) == 0) {
+        rownames(GEMatrix) <- seq(1, dim(GEMatrix)[1], by = 1)
+      }
+      VariableNum <- nrow(GEMatrix)
+      SampleSize <- ncol(GEMatrix)
+      if (VariableNum <= 1 || SampleSize <= 1) {
+        stop("Error:the number of variable is less than 2, or the number of observation is less than 2")
+      }
+      if (style == "pairs.between" || style =="pairs.only") {
+        if (length(which(is.na(var1.id) == TRUE)) > 0 | length(which(is.na(var1.id) ==  TRUE)) > 0) {
+          stop("Error: no variable IDs are given")
+        }
+        if (length(which(is.numeric(var1.id) == FALSE)) > 0 | length(which(is.numeric(var2.id) == FALSE)) > 0) {
+          stop("Error:var1.id and var2.id should be numeric vector")
+        }
+      }
+      if(style == "pairs.only"){
+        taskmatrix <- cbind(var1.id, var2.id)
+      }
+      if(style == "pairs.between") {
+        df <- expand.grid.unique(var1.id, var2.id, include.equals = TRUE)
+        df2 = t(apply(df, 1, sort))
+        taskmatrix <- df2[!duplicated(df2),]
+      }
+      pernum = as.numeric(pernum)
+      results <- apply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix,
+                       rowORcol = "row", cormethod = cormethod, pernum = pernum,
+                       sigmethod = sigmethod)
+      if(output == "paired"){
+        kk <- 0
+        corpvalueMatrix <- matrix(NA, nrow = dim(taskmatrix)[1], ncol = 4)
+        for (i in 1:dim(taskmatrix)[1]) {
+          if (taskmatrix[i, 1] == taskmatrix[i, 2]) {
+            next
+          }
+          kk <- kk + 1
+          corpvalueMatrix[kk, 1:2] <- rownames(GEMatrix)[taskmatrix[i, ]]
+          if (cormethod == "GCC") {
+            fGCC <- gcc.corfinal(results[i][[1]])
+            corpvalueMatrix[kk, 3] <- fGCC$gcc.fcor
+            corpvalueMatrix[kk, 4] <- fGCC$gcc.fpvalue
+          }
+          else {
+            corpvalueMatrix[kk, 3] <- results[i][[1]]$cor
+            corpvalueMatrix[kk, 4] <- results[i][[1]]$pvalue
+          }
+        }
+        return(corpvalueMatrix[1:kk, ])
+      }else{
+        UniqueRow <- sort(unique(taskmatrix[, 1]))
+        UniqueCol <- sort(unique(taskmatrix[, 2]))
+        corMatrix <- matrix(0, nrow = length(UniqueRow), ncol = length(UniqueCol))
+        rownames(corMatrix) <- rownames(GEMatrix)[UniqueRow]
+        colnames(corMatrix) <- rownames(GEMatrix)[UniqueCol]
+        pvalueMatrix <- corMatrix
+        pvalueMatrix[] <- NA
+        for (i in 1:dim(taskmatrix)[1]) {
+          rowidx <- which(UniqueRow == taskmatrix[i, 1])
+          colidx <- which(UniqueCol == taskmatrix[i, 2])
+          if (cormethod == "GCC") {
+            fGCC <- gcc.corfinal(results[i][[1]])
+            corMatrix[rowidx, colidx] <- fGCC$gcc.fcor
+            pvalueMatrix[rowidx, colidx] <- fGCC$gcc.fpvalue
+          }
+          else {
+            corMatrix[rowidx, colidx] <- results[i][[1]]$cor
+            pvalueMatrix[rowidx, colidx] <- results[i][[1]]$pvalue
+          }
+          # fill up the inverse part of the table
+          corMatrix[colidx, rowidx] <- corMatrix[rowidx, colidx]
+          pvalueMatrix[colidx, rowidx] <- pvalueMatrix[rowidx, colidx]
+        }
+        resList <- list(corMatrix = corMatrix, pvalueMatrix = pvalueMatrix)
+        return(resList)
+      }
+    },
+    error = function(e){ 
+      message("Error in cor.matrix.NECorr")
+      message(e)
+    },
+    warning = function(w){
+      message("Warning in cor.matrix.NECorr ")
+      message(w)
+    },
+    finally = {
     }
-    if (length(which(is.numeric(var1.id) == FALSE)) > 0 | length(which(is.numeric(var2.id) == FALSE)) > 0) {
-      stop("Error:var1.id and var2.id should be numeric vector")
-    }
-  }
-  if(style == "pairs.only"){
-    taskmatrix <- cbind(var1.id, var2.id)
-  }
-  if(style == "pairs.between") {
-    df <- expand.grid.unique(var1.id, var2.id, include.equals = TRUE)
-    df2 = t(apply(df, 1, sort))
-    taskmatrix <- df2[!duplicated(df2),]
-  }
-  pernum = as.numeric(pernum)
-  results <- apply(taskmatrix, 1, cor.pair, GEMatrix = GEMatrix,
-                   rowORcol = "row", cormethod = cormethod, pernum = pernum,
-                   sigmethod = sigmethod)
-  if(output == "paired"){
-    kk <- 0
-    corpvalueMatrix <- matrix(NA, nrow = dim(taskmatrix)[1], ncol = 4)
-    for (i in 1:dim(taskmatrix)[1]) {
-      if (taskmatrix[i, 1] == taskmatrix[i, 2]) {
-        next
-      }
-      kk <- kk + 1
-      corpvalueMatrix[kk, 1:2] <- rownames(GEMatrix)[taskmatrix[i, ]]
-      if (cormethod == "GCC") {
-        fGCC <- gcc.corfinal(results[i][[1]])
-        corpvalueMatrix[kk, 3] <- fGCC$gcc.fcor
-        corpvalueMatrix[kk, 4] <- fGCC$gcc.fpvalue
-      }
-      else {
-        corpvalueMatrix[kk, 3] <- results[i][[1]]$cor
-        corpvalueMatrix[kk, 4] <- results[i][[1]]$pvalue
-      }
-    }
-    return(corpvalueMatrix[1:kk, ])
-  }else{
-    UniqueRow <- sort(unique(taskmatrix[, 1]))
-    UniqueCol <- sort(unique(taskmatrix[, 2]))
-    corMatrix <- matrix(0, nrow = length(UniqueRow), ncol = length(UniqueCol))
-    rownames(corMatrix) <- rownames(GEMatrix)[UniqueRow]
-    colnames(corMatrix) <- rownames(GEMatrix)[UniqueCol]
-    pvalueMatrix <- corMatrix
-    pvalueMatrix[] <- NA
-    for (i in 1:dim(taskmatrix)[1]) {
-      rowidx <- which(UniqueRow == taskmatrix[i, 1])
-      colidx <- which(UniqueCol == taskmatrix[i, 2])
-      if (cormethod == "GCC") {
-        fGCC <- gcc.corfinal(results[i][[1]])
-        corMatrix[rowidx, colidx] <- fGCC$gcc.fcor
-        pvalueMatrix[rowidx, colidx] <- fGCC$gcc.fpvalue
-      }
-      else {
-        corMatrix[rowidx, colidx] <- results[i][[1]]$cor
-        pvalueMatrix[rowidx, colidx] <- results[i][[1]]$pvalue
-      }
-      # fill up the inverse part of the table
-      corMatrix[colidx, rowidx] <- corMatrix[rowidx, colidx]
-      pvalueMatrix[colidx, rowidx] <- pvalueMatrix[rowidx, colidx]
-    }
-    resList <- list(corMatrix = corMatrix, pvalueMatrix = pvalueMatrix)
-    return(resList)
-  }
+  )
+  
+ 
 }
 
 #' multiCorr
@@ -120,33 +136,47 @@ cor.matrix.NECorr <- function (GEMatrix, cpus = cpus,
 multiCorr <- function(x ,net= NA, nsockets= 4, methods = c("GCC","PCC","SCC","KCC"),
                       sigmethod = c("two.sided", "one.sided"),
                       nblocks = 10, verbose = TRUE, cpus = 1, pernum = 0, ...){
-  corMAT <- c()
-  if (methods == "GCC"){
-    #### NEW GINI CORRELATION CALCULATION
-    corMAT <- giniR(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6)
-  }else{
-    #suppressWarnings(suppressPackageStartupMessages(require(foreach)))
-    #suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
-    nsockets <- as.numeric(nsockets)
-    cl <- makeCluster(nsockets, type="SOCK")
-    registerDoSNOW(cl)
-    
-    Nrow = nrow(net)
-    fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
-    matnet <- split(net,fc)
-    j <- 1:nblocks
-    #corMAT<-foreach(j=1:nblocks, .combine='rbind',
-    corMAT<-foreach(j, .combine='rbind',
-                    .export=c('indexing.network','cor.matrix.NECorr'))%dopar%{
-                      netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
-                      G1 <- as.numeric(as.vector(netindexed[,1]))
-                      G2 <- as.numeric(as.vector(netindexed[,3]))
-                      cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods,
-                                        pernum=pernum, output="paired", cpus=cpus, style="pairs.only")
-                    }
-    stopCluster(cl)
-  }
-  return(corMAT)
+  tryCatch(
+    expr = {
+      corMAT <- c()
+      if (methods == "GCC"){
+        #### NEW GINI CORRELATION CALCULATION
+        corMAT <- giniR(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=0.6)
+      }else{
+        #suppressWarnings(suppressPackageStartupMessages(require(foreach)))
+        #suppressWarnings(suppressPackageStartupMessages(require(doSNOW)))
+        nsockets <- as.numeric(nsockets)
+        cl <- makeCluster(nsockets, type="SOCK")
+        registerDoSNOW(cl)
+        
+        Nrow = nrow(net)
+        fc <- gl(nblocks, ceiling(Nrow/nblocks), length = Nrow)
+        matnet <- split(net,fc)
+        j <- 1:nblocks
+        #corMAT<-foreach(j=1:nblocks, .combine='rbind',
+        corMAT<-foreach(j, .combine='rbind',
+                        .export=c('indexing.network','cor.matrix.NECorr'))%dopar%{
+                          netindexed <- indexing.network(as.matrix(x) ,matnet[[j]])
+                          G1 <- as.numeric(as.vector(netindexed[,1]))
+                          G2 <- as.numeric(as.vector(netindexed[,3]))
+                          cor.matrix.NECorr(x, var1.id=G1, var2.id=G2, sigmethod=sigmethod, cormethod=methods,
+                                            pernum=pernum, output="paired", cpus=cpus, style="pairs.only")
+                        }
+        stopCluster(cl)
+      }
+      return(corMAT)
+    },
+    error = function(e){ 
+      message("Error during multiCorr running")
+      message(e)
+    },
+    warning = function(w){
+      message("Warning during multiCorr running")
+      message(w)
+    },
+    finally = {
+    }
+  )
 }
 
 #' expand.grid.unique
