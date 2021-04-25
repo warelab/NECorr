@@ -4,7 +4,7 @@
 \alias{effector_significance}
 \title{effector_significance}
 \usage{
-effector_significance(eff.m.param, Desc, j.nB)
+effector_significance(eff.m.param, Desc, j.nB, sample.l, nGenes)
 }
 \arguments{
 \item{eff.m.param}{table with scale parameters for gene ranking}
@@ -12,6 +12,8 @@ effector_significance(eff.m.param, Desc, j.nB)
 \item{Desc}{description table of the genes}
 
 \item{j.nB}{predictive model based on Naives Bayes}
+
+\item{sample.l}{sample name}
 }
 \value{
 res list of 1.hash effector gene ranking and 2.table of ranking and descriptions
