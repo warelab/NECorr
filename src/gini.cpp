@@ -74,7 +74,7 @@ double calcGCC(vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vect
     numerator += wt[i] * xData[yIdx[i]];
     denominator += wt[i] * xData[xIdx[i]];
   }
-  return numerator/denominator;
+  return denominator > 0 ? numerator/denominator : 0;
 }
 static unsigned int x=12345, y=65432, z=362436069, w=521288629;
 unsigned int xorshift128(void) {
