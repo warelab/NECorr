@@ -12,12 +12,6 @@
 #' @param Filelist condition list see if still necessary with metadata
 #' @param type Omics comparative expression type: protein or gene
 #' @param permutation permutation number used for all significance calculation
-#' #param lmiR List of miRNAs
-#' @param method used for co-expression correlation: GCC, MINE, PCC, SCC or KCC
-#' @param sigcorr significance of the correlation
-#' @param NSockets number of sockets
-#' @param fadjacency correlation with all combination (all) or network
-#' combination only (only)
 #' @param verbose the number for the warn message
 #' @description NECorr helps discover candidate genes that could be
 #' important for specific conditions.
@@ -39,9 +33,8 @@ Necorr <- function(networkFile = "",
                    condition = "",
                    metadata = "", name = "",
                    Filelist = "",
-                   method = "GCC", permutation = 1000, sigcorr = 0.01,
-                   fadjacency = "only", type = "gene",
-                   NSockets = 2,
+                   permutation = 1000,
+                   type = "gene",
                    verbose= 0){
 
   verbose=0
@@ -57,7 +50,6 @@ Necorr <- function(networkFile = "",
   }
   # Condition experiment and/or tissue
   factortab <- read.table(metadata, header = T,sep = "\t", row.names = 1) #factor.file #condition <- "Radial"
-  # print(factortab)
   # Description file name with gene name and annotations
   Desc <-  read.csv(description.file, header=T, row.name=1) #description.file <- "1.Ath.GeneDesc.csv"
   # Read expression file
@@ -97,19 +89,17 @@ Necorr <- function(networkFile = "",
   # the tissue/stress-selectivity of each sample type
   # and order these tissue/stress-selective genes
   sample.names <- unique(factortab[,1])
-  # print(sample.names)
   xcol <- c()
   treatment.f <- factor()
   for (i in 1:length(sample.names)){
     #print(paste0("iteration i:", i))
     #print(paste0("iteration j:", j))
     nrep <- length(which(factortab[,1] == sample.names[i]))
-    # print(nrep)
     if(i==1){
       j <- i
     }
     if(nrep == 1){
-      # create 3 artificial columns if the sample has only one replicate
+      # create 3 artificial column replicates if the sample has only one replicate
       xcol <- c(xcol,rep(j,3))
       j <- j+3
       treatment.f <- factor(c(as.character(treatment.f), as.character(rep(sample.names[i],3))))
@@ -118,10 +108,7 @@ Necorr <- function(networkFile = "",
       treatment.f <- factor(c(as.character(treatment.f), as.character(rep(sample.names[i],nrep))))
       j <- j+(nrep)
     }
-    # print(treatment.f)
-    # print(xcol)
   }
-  # print(xcol)
   treatment.f <- factor(treatment.f, levels = sample.names)
   #-----------------------------------------------------------------------------------------------
 
@@ -139,52 +126,41 @@ Necorr <- function(networkFile = "",
   # Generate an empty vector to serve as table with all the ranks for conditions
   total.rank <- matrix(data = NA, nrow = length(Genelist))
   rownames(total.rank) <- Genelist
-  total.rank[,1] = Genelist
+  total.rank[,1] <- Genelist
   # R network topology done
 
   # Take only the genes that are part of the molecular network
   eset <- eset[Genelist[Genelist %in% rownames(eset)],] #!! change made Here
-  #eset <- eset[-grep("NA", rownames(m.eset)),]
   m.eset <- as.matrix(eset)
   m.eset <- m.eset[, xcol]
-  # print(m.eset)
   # Loop to measure the importance of gene expression
-  conditionList <-factortab[,2]
+  conditionList <- factortab[,2]
   factorList <- factortab[,1]
   df <- cbind(as.character(conditionList),as.character(factorList))
   df <- df[!duplicated(df),]
-  #fileexp <- as.character(basename(expression))
-  #end.time <- Sys.time()
-  #time.taken <- end.time - start.time
-  #print(time.taken)
 
   #-----------------------------------------------------------------------------------------------
-  message("Analysis of the co-expression file and p-value sums")
-  #start.time <- Sys.time()
-
-  int.sig <- multiCorr(m.eset, net = network.int, nsockets = NSockets,
-                       methods = method, output = "paired", sigmethod = "two.sided",
-                       pernum = permutation , verbose = T, cpus = NSockets)
-
-  #int.sig.file <- int.sig
-  #colnames(int.sig.file) <- c("Source","Target","Correlation","p-value")
+  message("Co-expression Analysis")
+  int.sig <- multiCorr(x=m.eset,
+                       net=network.int,
+                       pernum=permutation,
+                       verbose = T)
   # This adds a column of color values based on the y values
-  # remove the line with NA due to not found gene due to no expresssion
+  # remove the line with NA due to not found gene due to no expression
   # or error of annotation in the initial network file
   int.sig <- int.sig[complete.cases(int.sig),]
-  # print(dim(int.sig))
 
   # Transform the p-value in the maximal p-value in function of number of permutations
   # to avoid log-scale = infinity
   # Replace the p-value equal to 0 by the maximal p-value e.g.
-  # 1/10000 knowing that we have 10000 randomizations in initial calculations
+  # 1/10000 knowing that we have 10000 randomization in initial calculations
   max.p.val <- 1/as.numeric(permutation)
   int.sig[which(int.sig[,4] == 0),4] <- max.p.val
-  int.sig <-as.data.frame(int.sig)
-  p.int.sig  <- as.numeric(as.character(int.sig[,4]))
+  int.sig <- as.data.frame(int.sig)
+  p.int.sig <- as.numeric(as.character(int.sig[,4]))
   pval <- -log(p.int.sig,10)
   #-----------------------------------------------------------------------------------------------
-  message("Define gene tissue specificity index")
+  message("Tissue-specificity Analysis")
   #start.time <- Sys.time()
   # Add the weight for the studied tissue
   # tissue selectivity or tissue exclusion from the tissue should be considered
@@ -198,7 +174,7 @@ Necorr <- function(networkFile = "",
   # Rank the tissue selective genes using the Tissue Selective Index
   # for each gene TSI for activation and modify for tissue repression
   m.eset <- as.data.frame(m.eset)
-  prets <- ts.IUT(name = paste0(sample.l, netname,"_", method, "_", permutation),
+  prets <- ts.IUT(name=paste0(sample.l, netname,"_", permutation),
                   eset=m.eset, tissues=sample.names, target=sample.l,
                   threshold = 0.05, filter = 20)
 
@@ -206,18 +182,15 @@ Necorr <- function(networkFile = "",
   colnames(prets$filtTSE) <- colnames(prets$filtTSI)
   ts <- rbind(prets$filtTSI , prets$filtTSE)
   ts <- data.frame(names = row.names(ts), ts)
-  message("vector of tissue-selectivity")
+  # message("vector of tissue-selectivity")
   # use data table to select only the best tsi or tse for each genes
   ts <- setDT(ts)[, .SD[which.max(tsi.order)], by=names]
   ts <- as.data.frame(ts)
   rownames(ts) <- ts$names; ts <- ts[,-1]
   tslist = ts
-  #end.time <- Sys.time()
-  #time.taken <- end.time - start.time
-  #print(time.taken)
 
   #-----------------------------------------------------------------------------------------------
-  message("Determine the overall interaction importance for each node gene")
+  message("Determine each gene importance in co-expression analysis")
   # for the interactions coming from the same node
   # create hash with all the genes in the network as keys
   int.pvals <- structure(rep(1, length(Genelist)), names=Genelist)   #1 interaction p-values
@@ -246,7 +219,7 @@ Necorr <- function(networkFile = "",
   for (i in 1:length(Genelist)){
     gene <- Genelist[i] # get the name of the gene
     trans.cumpvals <- fishersMethod(as.numeric(as.vector(h[[gene]])))
-    cumpvals <- -log(trans.cumpvals,10)  # transform pval in factor and Take -log10 of the results
+    cumpvals <- -log(trans.cumpvals,10)  # transform pval in factor and take -log10 of the results
     if (is.na(cumpvals)){
       int.pvals[gene] <- 0;
     }else {
@@ -276,7 +249,7 @@ Necorr <- function(networkFile = "",
   PageRank <- as.data.frame(PageRank)
 
   ###-------------------------------------------------------------------------------------------------
-  message("Merging and scaling the network parameters")
+  message("Hub gene ranking")
   # Hub NECorr merge all the sub-network statistics
   m.param <- list(int.pvals, ts, BetwC, Conn, ClusCoef, EigenC, PageRank, DE.ranks) %>%
     map(~ .x %>% as.data.frame %>% rownames_to_column('rn')) %>%
@@ -284,14 +257,10 @@ Necorr <- function(networkFile = "",
     column_to_rownames('rn')
   m.param[is.na(m.param)] <- 0
   m.param <- as.data.frame(m.param)
-  #colnames(m.param) <- c("interaction.pvals",
-  #                      "tissue.treatment.specificity",
-  #                      "Betweenness.Centrality",
-  #                      "Connectivity","Transitivity",
-  #                      "Eigenvector","PageRank","DE")
+
   #--------------------------------------------------------------------------------------------------
-  # calculate the weight for: (use ahp to generate weight)")
-  #done before the loop wpar variable
+  # Calculate the weight for: (use ahp to generate weight)")
+  # done before the loop wpar variable
 
   # Hub NECorr - pick the top genes for validations - best alternatives")
   # calculate the weighted ranking for each gene = alternative ranking
@@ -306,9 +275,9 @@ Necorr <- function(networkFile = "",
   gene.rank.h <- apply(hub.m.param,1,sum)*100
   gene.rank.h <- gene.rank.h[order(gene.rank.h, decreasing=TRUE)]
   nGenes <- length(gene.rank.h)
-  #building hub rank hash
+  # building hub rank hash
   gene.rank.h <- as.data.frame(gene.rank.h)
-  #load the ranks into a hash to make faster with the hash package
+  # load the ranks into a hash to make faster with the hash package
   gene.rank.hash <- hash()
   geneIDs <- row.names(gene.rank.h)
   for (i in 1:nGenes) {
@@ -327,12 +296,8 @@ Necorr <- function(networkFile = "",
                             by = ("rowname" = "rowname"))
   total.rank.h <- as.data.frame(total.rank.h)
 
-  #end.time <- Sys.time()
-  #time.taken <- end.time - start.time
-  #print(time.taken)
   #------------------------------------------------------------------------------------------------
-  message("Effector NECorr - pick the top genes for validations - best alternatives")
-  #start.time <- Sys.time()
+  message("Downstream genes effector for the hub genes")
   # calculate the probability = alternative ranking
   eff.m.param <-  m.param[ ,c("int.pvals", "tsi.order", "BetwC", "Conn", "EigenC", "PageRank", "DE.ranks")]
 
@@ -340,25 +305,19 @@ Necorr <- function(networkFile = "",
                              "Betweenness.Centrality", "Connectivity", "Eigenvector",
                              "PageRank","DE")
 
-  ### MACHINE LEARNING with parameter define from validations
-  ### Predict probability to be important gene
-
-  #!!!! if Naive Bayes
-  #suppressWarnings(suppressPackageStartupMessages(library(klaR)))
+  ### MACHINE LEARNING with parameters define from validations
+  ### Predict probability of genes to be important in the process
   #j.nB <- NaiveBayes(phenotype ~ . , data = eff.m.param, kernel = "rectangular", n = 148)
   load(system.file("extdata", "ML_model.RData", package="NECorr", mustWork = TRUE))
   j.nB <- model
-  #
-  gene.rank.e.description <- effector_significance(eff.m.param=eff.m.param, Desc=Desc, j.nB=j.nB,
-                                  sample.l=sample.l)
-  #print("effector calculation done")
-  gene.rank.eff <- gene.rank.e.description$gene.rank.eff
-  names(gene.rank.eff) <- rownames(gene.rank.e.description)
-  #end.time <- Sys.time()
-  #time.taken <- end.time - start.time
-  #print(time.taken)
+  # using the model, find the gene involved in the studied process
+  gene.rank.e.description <- effector_significance(eff.m.param=eff.m.param,
+                                                   Desc=Desc, j.nB=j.nB,
+                                                   sample.l=sample.l)
+  #gene.rank.eff <- gene.rank.e.description$gene.rank.eff
+  #names(gene.rank.eff) <- rownames(gene.rank.e.description)
   #------------------------------------------------------------------------------------------------
-  message("Hub interaction ranking")
+  message("Interaction rankings")
 
   # Hub interactions (edges) ranking for the edge(interactions) linked to a hub gene
   hub.int.ranks <- hub_edge_significance(network.int=network.int,
@@ -366,45 +325,41 @@ Necorr <- function(networkFile = "",
   # take the significant p-value edges(interactions) based on the sum of the significance
   # of their nodes
   hub.int.significant <- subset(hub.int.ranks, p2 < 0.005)
-  #print("hub.int.significant")
 
   # ranking of the effector per edges
-  eff.int.ranks <- effector_edge_significance(network.int = network.int,
-                             gene.rank.eff = gene.rank.eff, nGenes=nGenes)
+  eff.int.ranks <- effector_edge_significance(network.int=network.int,
+                                              gene.rank.eff=gene.rank.e.description,
+                                              nGenes=nGenes)
   eff.int.significant <- subset(eff.int.ranks, p2 < 0.005)
-  # print("eff.int.significant")
+
   # Activator NECorr - based on genes in the complete network edges linking the hub genes")
-  actres <- activator_significant(hub.int.significant = hub.int.significant,
-                        network.int=network.int, Desc = Desc)
+  actres <- activator_significant(hub.int.significant=hub.int.significant,
+                                  network.int=network.int,
+                                  Desc=Desc)
 
-  # print("actres")
-  # print(head(actres))
   gene.rank.act.significant <- actres$rank
-  gene.rank.act.description <-  actres$description
-  #end.time <- Sys.time()
-  #time.taken <- end.time - start.time
-  #print(time.taken)
-
+  gene.rank.act.description <- actres$description
   hub.net <- as.data.frame(
     cbind(as.character(hub.int.significant$sourceIDs),
           as.character(hub.int.significant$targetIDs),
-          as.numeric(as.character(hub.int.significant$ranks.sum)),
+          as.numeric(as.character(hub.int.significant$score)),
           rep("hub", nrow(hub.int.significant))))
-  colnames(hub.net) <- c("source","target","score","node.type")
-  # print("hub.net")
-  # print(head(hub.net))
+  colnames(hub.net) <- c("sourceIDs", "targetIDs", "score", "Node_type")
+
   # significant activator sub-network linked to hub network
+  #------------------------------------------------------------------------------------------------
+  message("Upstream genes activator for the hub genes")
+
   act.net <- linked_act_hub_net(hub.int.significant, gene.rank.act.significant,
                                 network.int)
-  # significant effector sub-netowrk linked to hub network
+  colnames(act.net) <- c("sourceIDs", "targetIDs", "score", "Node_type")
+  # significant effectors linked to the hub gene network
   eff.net <- linked_eff_hub_net(hub.int.significant, eff.int.significant)
 
   # merge important networks
   hub.act.net <- rbind(act.net,hub.net)
-  # print("hub.act.net")
-  # print(head(hub.act.net))
 
-  #merging the genes ranking and statistics (node)
+  # merging the hub genes ranking and statistics (node)
   colnames(int.pvals) <- c("Gini_cumulative_pval")
   mylist <- list( Node=gene.rank.h.description, # Rank and description
                   NetStat=netstat, # Network topology stats
@@ -416,26 +371,27 @@ Necorr <- function(networkFile = "",
     colnames(mylist[[i]]) <- paste0( names(mylist)[i], "_", colnames(mylist[[i]]) )
     mylist[[i]]$ROWNAMES  <- rownames(mylist[[i]])
   }
-
   gene_rank <- plyr::join_all( mylist, by="ROWNAMES", type="full" )
   rownames(gene_rank) <- gene_rank$ROWNAMES; gene_rank$ROWNAMES <- NULL
-
-
+  colnames(gene_rank)[c(1,2)] <- c("Gene", "Node_Hub.Ranking")
+  # column names standardization
+  colnames(int.sig) <- c("sourceIDs", "targetIDs", "gini", "pvalue", "mingini", "maxgini")
+  # output
   res <- list(
       # hub gene ranking and stats
-      hub_gene_rank = gene_rank,
-      # interaction significance implicating hub genes
-      hub_interaction_rank = hub.int.significant,
-      # Co-expression using gini score
-      Gini_interaction = int.sig,
-      # hub interaction gene ranking
-      hub_edge_rank = hub.int.ranks,
+      hub_genes = gene_rank,
       # interaction significance implicating activator gene ranking
-      up_activator_interaction_rank = gene.rank.act.description,
+      up_activators = gene.rank.act.description,
       # interaction significance implicating effector gene ranking
-      down_effector_interaction_rank = gene.rank.e.description,
+      down_effectors = gene.rank.e.description,
+      # interaction significance implicating hub genes
+      hub_interactions = hub.int.significant,
+      # Co-expression using Gini score
+      Gini_interactions = int.sig,
+      # hub interaction gene ranking
+      hub_interactions = hub.int.ranks,
       # significant network meging with significant  (p<0.005 and activator)
-      interaction_act_hub_rank = hub.act.net
+      up_hub_interactions = hub.act.net
     )
   return(res)
 }
@@ -443,24 +399,26 @@ Necorr <- function(networkFile = "",
 
 #' necorr_graph
 #'
-#' @param hubnet significant network contining hub, activators
-#' @param hub.int.significant hub interaction significance
-#' @param gene.rank.act.significant  activator ranking
-#'
+#' @param resNecoor output from the NECorr function
+#' @description Provide a network visualization of the results from NECorr
 #' @return netgraph
 #' @export
-necorr_graph <- function(hubnet, hub.int.significant, activator_rank){
-  # link activator and hub significant sub-networks
-  sig.hub <- unique(c(as.character(hub.int.significant$V1),
-                     as.character(hub.int.significant$V2)))
-  if(( nrow(hubnet)>0) == TRUE){
-    #print(hub.act.net)
-    g <- graph.data.frame(hubnet, directed = T)
-
-    vcolors <- rep("cyan",length(V(g)$name))
+necorr_graph <- function(resNecorr){
+  # use the significant network genes
+  signif.net <- resNecorr$up_hub_interactions
+  sig.hub <- resNecorr$up_activators$Gene
+  hub.gene <- resNecorr$hub_genes$Gene
+  if((nrow(hubnet)>0) == TRUE){
+    #graph initialization
+    g <- graph.data.frame(signif.net, directed = T)
+    # node colors (vertex)
+    vcolors <- rep("grey",length(V(g)$name))
     vcolors[which(V(g)$name %in% sig.hub)] <- "red"
+    vcolors[which(V(g)$name %in% hub.gene)] <- "cyan"
+    # node size: hub score are used here
+    vsize <- rep(1,length(V(g)$name))
+    vsize[which(V(g)$name %in% hub.gene)] <-
 
-    vsize.hub <- as.numeric(gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
     vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
 
     temp <- as.data.frame(gene.rank.act.significant)
@@ -483,8 +441,8 @@ necorr_graph <- function(hubnet, hub.int.significant, activator_rank){
                                vertex.frame.color = vcolors, newpage = F)
       return(netgraph)
     }
-  }
+ }
   else{
-    message("no network can be drawn")
+    message("No network can be drawn")
     }
   }

@@ -36,12 +36,10 @@ factOrg  <- function(eset, pDataTissue){
           orgFactors <-
             factor(c(as.character(orgFactors),as.character(rep(sample.names[i],3))))
         } else if(nrep > 1){
-          #xcol <- c(xcol,seq(i,i+(nrep-1)))
           xcol <- c(xcol,which(pDataTissue==sample.names[i]))
           orgFactors <-
             factor(c(as.character(orgFactors),as.character(rep(sample.names[i],nrep))))
         }
-        #print(orgFactors)
       }
       orgFactors <- factor(orgFactors, levels = sample.names)
       m.eset = as.matrix(eset)
@@ -49,7 +47,7 @@ factOrg  <- function(eset, pDataTissue){
       out <- list(eset=m.eset, orgFact=orgFactors)
       return(out)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in the expression column reorganization")
       message(e)
     },
@@ -73,12 +71,10 @@ factOrg  <- function(eset, pDataTissue){
       orgFactors <-
         factor(c(as.character(orgFactors),as.character(rep(sample.names[i],3))))
     } else if(nrep > 1){
-      #xcol <- c(xcol,seq(i,i+(nrep-1)))
       xcol <- c(xcol,which(pDataTissue==sample.names[i]))
       orgFactors <-
         factor(c(as.character(orgFactors),as.character(rep(sample.names[i],nrep))))
     }
-    #print(orgFactors)
   }
   orgFactors <- factor(orgFactors, levels = sample.names)
   m.eset = as.matrix(eset)
@@ -99,7 +95,7 @@ TSI <- function(x){
       res <- sum(1 - x/max(x))/(length(x) - 1)
       return(res)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in the Tissue Specific Index calculation")
       message(e)
     },
@@ -110,7 +106,7 @@ TSI <- function(x){
     finally = {
     }
   )
-  
+
 }
 
 
@@ -125,7 +121,7 @@ TSE <- function(x){
       res <- sum( 1 - (min(x)/max(x)))/(length(x) - 1)
       return(res)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in the Tissue Specific Exclusion")
       message(e)
     },
@@ -140,7 +136,7 @@ TSE <- function(x){
 
 
 #' IUTtsi
-#' @description define tissue specific expression threshold 
+#' @description define tissue specific expression threshold
 #' to apply to detect tissue-specificity
 #' This could avoid very lowly expressed genes that could be artifact
 #' @param data expression data
@@ -163,9 +159,9 @@ IUTtsi <- function(data, geneTS, targetSample, expThreshold){
           y <- data[names(tsi.order),]
           y.sort <- as.matrix(y[which(y[, targetSample] > expThreshold), ])
           #
-          y.sort <- as.data.frame(y.sort) 
+          y.sort <- as.data.frame(y.sort)
           y.sort$RowNames <- row.names(y.sort)
-          # 
+          #
           tsi.order <- as.data.frame(tsi.order);
           tsi.order$RowNames <- row.names(tsi.order)
           #
@@ -192,16 +188,14 @@ IUTtsi <- function(data, geneTS, targetSample, expThreshold){
           y.sort <- y.sort[,-which(colnames(y.sort) == "RowNames")]
           y.sort <- as.matrix(y.sort)
         }
-        
+
       }else{
-        #print("noTSI")
         y.sort <- matrix(nrow = 0, ncol = length(colnames(data))+1,
                          dimnames = list(c(), c(colnames(data), "tsi.order")))
       }
       return(y.sort)
-      #print(head(y.sort))
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in IUTtsi")
       message(e)
     },
@@ -229,7 +223,6 @@ IUTtse <- function(data, geneTS, targetSample, expThreshold){
     expr = {
       tse.order <- c()
       Glen <- length(geneTS[which(geneTS == TRUE)])
-      #print(colnames(data))
       if(Glen > 0){
         geneTS <- geneTS[which(geneTS == TRUE)]
         if(Glen > 1){
@@ -238,27 +231,25 @@ IUTtse <- function(data, geneTS, targetSample, expThreshold){
           y <- data[names(tse.order),]
           y.sort <- as.matrix(y[which(y[, targetSample] > expThreshold), ])
           #
-          y.sort <- as.data.frame(y.sort) 
+          y.sort <- as.data.frame(y.sort)
           y.sort$RowNames <- row.names(y.sort)
-          # 
+          #
           tse.order <- as.data.frame(tse.order);
           tse.order$RowNames <- row.names(tse.order)
           #
           y.sort <- left_join(y.sort, tse.order, by = 'RowNames')
           y.sort <- as.data.frame(y.sort)
           row.names(y.sort) <- y.sort$RowNames
-          
           y.sort <- y.sort[,-which(colnames(y.sort) == "RowNames")]
-          # y.sort <- as.matrix(y.sort)
         }else if(Glen == 1){ # if there is only one tissue-selective genes
           tse.order <- TSE(data[which(geneTS==TRUE), ])
           names(tse.order) <- names(geneTS)
           y.sort <- t(as.matrix(data[names(tse.order), ]))
           rownames(y.sort) <- names(geneTS)
           #
-          y.sort <- as.data.frame(y.sort) 
+          y.sort <- as.data.frame(y.sort)
           y.sort$RowNames <- row.names(y.sort)
-          # 
+          #
           tse.order <- as.data.frame(tse.order)
           tse.order$RowNames <- row.names(tse.order)
           #
@@ -269,13 +260,12 @@ IUTtse <- function(data, geneTS, targetSample, expThreshold){
           # y.sort <- as.matrix(y.sort)
         }
       }else{
-        #print("noTSE")
         y.sort <- matrix(nrow = 0, ncol = length(colnames(data))+1,
                          dimnames = list(c(), c(colnames(data),"tse.order")))
       }
       return(y.sort)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in IUTtse")
       message(e)
     },
@@ -317,9 +307,8 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha){
         SSdev <- apply(m.eset.i, 1, function(x) var(x)*(length(x)-1))
         SSdevs <- as.matrix(SSdevs + SSdev)
         fL <- upper + 1
-        #print(i)
       }
-      
+
       # t-test between sample and each other sample
       Nin  <- sFactors[sIndex]
       Noth <- sFactors[-sIndex]
@@ -335,8 +324,6 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha){
       crit.value <- qt(1-thresh, nrarrays-sFactors[sIndex])
       # find genes with all significant t-test for the chosen sample compared each
       # other ones.
-      # print(head(tstattab)) #
-      message(nbTreat)
       if(isTRUE(nrow(tstattab) > 0)){
         StudentSumP <- rowSums(tstattab > crit.value)
         resultpos <- StudentSumP == (nbTreat-1)
@@ -349,7 +336,7 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha){
       res <- list(TS = resultpos, TE = resultmin)
       return(res)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in IUTest")
       message(e)
     },
@@ -432,15 +419,15 @@ ts.IUT <- function(name = "exp", eset, tissues, target,
         m.iut.tse.filt <- m.iut.tse.filt[which(m.iut.tse.filt[,target] > filter), ]
         others2 <- meansFactor[setdiff(rownames(meansFactor), rownames(m.iut.tse.filt)), ]
         others2 <- cbind(others2, tse.order = rep(0, nrow(others2)))
-        rankedTSE <- rbind(m.iut.tse.filt, others2) 
-      }else{           
+        rankedTSE <- rbind(m.iut.tse.filt, others2)
+      }else{
           rankedTSE <- cbind(meansFactor, tse.order = rep(0, nrow(meansFactor)))
       }
       # Results
       listall <- list(filtTSI = rankedTSI, filtTSE = rankedTSE)
       return(listall)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error in ts.IUT")
       message(e)
     },
