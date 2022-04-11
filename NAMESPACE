@@ -25,6 +25,7 @@ import(purrr)
 import(dplyr)
 import(plyr)
 import(data.table)
+import(visNetwork)
 useDynLib(NECorr, .registration=TRUE)
 importFrom(Rcpp, evalCpp, sourceCpp)
 exportPattern("^[[:alpha:]]+")
@@ -45,5 +46,6 @@ importFrom("igraph", "degree", "graph.data.frame", "betweenness", "evcent",
 importFrom("grDevices", "colorRampPalette", "dev.off", "pdf")
 importFrom("stats", "complete.cases", "model.matrix", "pchisq", "cor.test",
            "predict", "qt", "var")
-
+importFrom("visNetwork", "visIgraphLayout", "visNodes", "visEdges", "visLayout",
+      "visInteraction","visOptions")
 

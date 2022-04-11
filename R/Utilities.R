@@ -159,8 +159,8 @@ activator_significant <- function(hub.int.significant=hub.int.significant,
 
       ## change the names of the hub genes in the extended hub network using source genes
       change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
-      tmp<-as.character(net.extension.sig.hub[,1])
-      tmp[change.sig.hubNames]<-"sig"
+      tmp <- as.character(net.extension.sig.hub[,1])
+      tmp[change.sig.hubNames] <- "sig"
       net.extension.sig.hub[,1] <- tmp
 
       ## change the names of the hub genes in the extended hub network using target genes
@@ -318,7 +318,7 @@ linked_eff_hub_net <- function(hub.int.significant=hub.int.significant,
 indexing.network <- function (tab,network) {
   tryCatch(
     expr = {
-      # create table with all the gene in network
+      # create table with all the genes in network
       t <- as.data.frame(unique(apply(network,1, function(x) c(x[1],x[2]))))
       tt1 <- t(t)
       #replace the gene name by their index in expression table

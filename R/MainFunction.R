@@ -34,11 +34,8 @@ Necorr <- function(networkFile = "",
                    metadata = "", name = "",
                    Filelist = "",
                    permutation = 1000,
-                   type = "gene",
-                   verbose= 0){
+                   type = "gene"){
 
-  verbose=0
-  #options(warn = warn_verbose)
   # load file and options
   # read networkFile
   network.int <- read.delim(networkFile, sep ="\t", header = T, fileEncoding="latin1")
@@ -144,7 +141,7 @@ Necorr <- function(networkFile = "",
   int.sig <- multiCorr(x=m.eset,
                        net=network.int,
                        pernum=permutation,
-                       verbose = T)
+                       verbose = re)
   # This adds a column of color values based on the y values
   # remove the line with NA due to not found gene due to no expression
   # or error of annotation in the initial network file
@@ -399,50 +396,80 @@ Necorr <- function(networkFile = "",
 
 #' necorr_graph
 #'
-#' @param resNecoor output from the NECorr function
-#' @description Provide a network visualization of the results from NECorr
-#' @return netgraph
+#' @param resNecorr output from the NECorr function
+#' @param nbinteractions number of interaction to include (10 is the default)
+#' @description Provide a network visualization of the results from NECorr.
+#' the output can be saved as a HMTL page;
+#' network %>% visSave(file = "network.html")
+#' @return netgraph a visNetwork object
 #' @export
-necorr_graph <- function(resNecorr){
+necorr_graph <- function(resNecorr, nbinteractions=10){
+  # library(visNetwork) !!!! add to description and names files
+  ## TO eliminate when function done
+  #resNecorr <- res1
+  #nbinteractions <- 100
   # use the significant network genes
   signif.net <- resNecorr$up_hub_interactions
+  signif.net <- signif.net[order(signif.net$score, decreasing = T),]
+  signif.net <- signif.net[c(1:nbinteractions),]
   sig.hub <- resNecorr$up_activators$Gene
-  hub.gene <- resNecorr$hub_genes$Gene
-  if((nrow(hubnet)>0) == TRUE){
+  if((nrow(signif.net)>0) == TRUE){
     #graph initialization
     g <- graph.data.frame(signif.net, directed = T)
+    # extract significant hub genes
+    hub.gene <- resNecorr$hub_genes$Gene
+    # extract and transform hub rank for node size
+    hubRank <- resNecorr$hub_genes$Node_Hub.Ranking
+    hubRank[is.na(hubRank)] <- 0
+    resNecorr$hub_genes$Node_Hub.Ranking <- 3^(ScalN(hubRank) + 2)
+    # extract the data now in the order of the vertices in igraph
+    resV <- resNecorr$hub_genes[which(resNecorr$hub_genes$Gene %in% V(g)$name), c(1:3)]
+    rownames(resV) <- resV$Gene
+    resV <- resV[V(g)$name,]
     # node colors (vertex)
     vcolors <- rep("grey",length(V(g)$name))
+    vcolors[which(V(g)$name %in% hub.gene)] <- "lightblue"
     vcolors[which(V(g)$name %in% sig.hub)] <- "red"
-    vcolors[which(V(g)$name %in% hub.gene)] <- "cyan"
+    #V(g)$color <- vcolors
     # node size: hub score are used here
-    vsize <- rep(1,length(V(g)$name))
-    vsize[which(V(g)$name %in% hub.gene)] <-
+    #V(g)$size <- resV$Node_Hub.Ranking
+    #V(g)$label.color = "black"
+    # edge
+    #E(g)$color <- "grey"
+    #E(g)$arrow.size <- 0.05
+    # transform the data in visNetwork objects
+    data <- toVisNetworkData(g)
+    # add attributes to the nodes (genes)
+    nodes <- data$nodes
+    nodes <- mutate(nodes, shadow = TRUE)
+    nodes <- mutate(nodes, color = vcolors)
+    nodes <- mutate(nodes, label.color = "black")
+    nodes <- mutate(nodes, size = 2 + as.numeric(resV$Node_Hub.Ranking)/1.5)
 
-    vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
+    # add attributes to the edges (interactions)
+    edges <- data$edges
+    edges <- mutate(edges, width = 0.05 + as.numeric(score)/10)
+    E.effect <- resNecorr$Gini_interactions
+    colnames(E.effect)[c(1,2)] <- c("from", "to")
+    edges <- edges %>% left_join(E.effect, by=c("from","to")) # add the Gini score
+    # red is negative expression correlation; green is positive expression correlation
+    color_range <- colorRampPalette(c("#E70101", "#28CB19"))
+    Cpal <- color_range(100)
+    Crange <- function(x){1 + 99*(x-min(x))/(max(x)-min(x))}
+    edges$color <- Cpal[round(Crange(edges$gini))]
 
-    temp <- as.data.frame(gene.rank.act.significant)
-    rownames(temp) <- temp[,1]
-    vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
-    vsize.act <- 2^(ScalN(vsize.act) + 2.21)
-    vsize <- c(vsize.act,vsize.hub)
-    vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
-    if (is.finite(vsize) & vsize>0){
-      # 	    mark.groups <- vcolors
-      # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
-      # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
-      #
-      # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
-      # pdf(file = title, width = 10, height = 10)
-      netgraph <- dnet::visNet(g, glayout=layout.fruchterman.reingold(g) ,
-                               vertex.shape="sphere",
-                               vertex.label = vlabel, edge.color = "grey",
-                               edge.arrow.size = 0.3, vertex.color = vcolors,
-                               vertex.frame.color = vcolors, newpage = F)
-      return(netgraph)
+    netgraph <- visNetwork(nodes, edges) %>%
+      visIgraphLayout(layout = "layout_with_fr") %>%
+      visNodes(color = list(border = "grey",
+                            highlight = "yellow"),
+               shadow = list(size = 2)) %>%
+      visEdges(arrows = "to") %>%
+      visLayout(randomSeed = 21) %>%
+      visInteraction(navigationButtons = TRUE) %>%
+      visOptions(manipulation = TRUE)
+    return(netgraph)
     }
- }
   else{
     message("No network can be drawn")
     }
-  }
+}
