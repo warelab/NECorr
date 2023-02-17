@@ -154,39 +154,67 @@ activator_significant <- function(hub.int.significant=hub.int.significant,
       sc.sig.hub <- subset(network.int, network.int[,1] %in% sig.hub)
       tg.sig.hub <- subset(network.int, network.int[,2] %in% sig.hub)
       net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
-      
-      ## change the names of the hub gene in the extented hub network using source genes
-      change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
-      tmp<-as.character(net.extension.sig.hub[,1])
-      tmp[change.sig.hubNames]<-"sig"
-      net.extension.sig.hub[,1] <- tmp
-      
-      ## change the names of the hub gene in the extend ed hub network using target genes
-      change.sig.hubNames <- net.extension.sig.hub[,2] %in% sig.hub
-      tmp <- as.character(net.extension.sig.hub[,2])
-      tmp[change.sig.hubNames] <- "sig"
-      net.extension.sig.hub[,2] <- tmp
-      
-      ## network extended to putative regulator using source genes
-      act.m.param <- net.extension.sig.hub
-      sc.count <- rle(sort( act.m.param[,1] ))
-      act.m.param$Count <- sc.count[ match( act.m.param[,1] , sc.count ) ]
-      
-      # gene ranking of linked to hub nodes
-      gene.rank.act <- cbind(sc.count$values, sc.count$lengths)
-      gene.rank.act <- gene.rank.act[order(as.numeric(gene.rank.act[,2]), decreasing=TRUE),]
-      gene.rank.act <- gene.rank.act[ - which(gene.rank.act[,1] == "sig"),]
-      
-      # add the genes that have 20% of the genes linked to hub genes
-      gene.rank.act.significant <- gene.rank.act[which(gene.rank.act[,2] >= (length(sig.hub)*0.20)),]
-      gene.rank.act.significant <- as.data.frame(gene.rank.act.significant)
-      # write the putative activator genes
-      gene.rank.act.b <- as.data.frame(gene.rank.act)
-      gene.rank.act.description <- left_join(rownames_to_column(gene.rank.act.b), 
+      #print("###### net.extension.sig.hub #######")
+      #print(head(net.extension.sig.hub))
+      ######
+      g <- graph.data.frame(net.extension.sig.hub, directed = T)
+      ## calculate the pagerank known as regulator
+      pagerank<-page.rank(g)$vector
+      # degree centrality
+      degree<-degree(g, v=V(g), mode = "total",normalized = T)
+      # out degree
+      degree_out<-degree(g, v=V(g), mode = "out")
+      # preparation to transform the network statistics in a table
+      gene_name<-V(g)$name
+      # bind into matrices
+      datagrid <- data.frame(I(gene_name), pagerank, degree, degree_out)
+      cc <- c("gene_name", "pagerank", "EdgeCount", "degree_out")
+      colnames(datagrid) <- cc
+      rownames(datagrid) <- gene_name
+      datagrid <- datagrid[order(datagrid$pagerank, decreasing = T),]
+      gene.rank.act.description <- left_join(rownames_to_column(datagrid), 
                                              rownames_to_column(Desc), 
                                              by = ("rowname" = "rowname"))
-      gene.rank.act.description <- as.data.frame(gene.rank.act.description)
-      res <- list(rank=gene.rank.act.significant, description=gene.rank.act.description)
+      rownames(gene.rank.act.description) <- gene.rank.act.description$rowname
+      gene.rank.act.description <- gene.rank.act.description[, -c(1,2)]
+      #print("### datagrid ###")
+      #print(head(gene.rank.act.description))
+      
+      ######
+      # ## change the names of the hub gene in the extented hub network using source genes
+      # change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
+      # tmp<-as.character(net.extension.sig.hub[,1])
+      # tmp[change.sig.hubNames]<-"sig"
+      # net.extension.sig.hub[,1] <- tmp
+      # 
+      # ## change the names of the hub gene in the extend ed hub network using target genes
+      # change.sig.hubNames <- net.extension.sig.hub[,2] %in% sig.hub
+      # tmp <- as.character(net.extension.sig.hub[,2])
+      # tmp[change.sig.hubNames] <- "sig"
+      # net.extension.sig.hub[,2] <- tmp
+      # 
+      # ## network extended to putative regulator using source genes
+      # act.m.param <- net.extension.sig.hub
+      # sc.count <- rle(sort( act.m.param[,1] ))
+      # act.m.param$Count <- sc.count[ match(act.m.param[,1] , sc.count) ]
+      # 
+      # # gene ranking of linked to hub nodes
+      # gene.rank.act <- cbind(sc.count$values, sc.count$lengths)
+      # gene.rank.act <- gene.rank.act[order(as.numeric(gene.rank.act[,2]), decreasing=TRUE),]
+      # gene.rank.act <- gene.rank.act[ - which(gene.rank.act[,1] == "sig"),]
+      # 
+      # # add the genes that have 20% of the genes linked to hub genes
+      # gene.rank.act.significant <- gene.rank.act[which(gene.rank.act[,2] >= (length(sig.hub)*0.20)),]
+      # gene.rank.act.significant <- as.data.frame(gene.rank.act.significant)
+      # #print("###### gene.rank.act.significant #######")
+      # #print(head(gene.rank.act.significant))
+      # # write the putative activator genes
+      # gene.rank.act.b <- as.data.frame(gene.rank.act)
+      # gene.rank.act.description <- left_join(rownames_to_column(gene.rank.act.b), 
+      #                                        rownames_to_column(Desc), 
+      #                                        by = ("rowname" = "rowname"))
+      # gene.rank.act.description <- as.data.frame(gene.rank.act.description)
+      res <- gene.rank.act.description
       return(res)
     },
     error = function(e){ 
@@ -243,8 +271,6 @@ linked_act_hub_net <- function(hub.int.significant=hub.int.significant,
     finally = {
     }
   )
-  
-
 }
 
 #' linked_eff_hub_net
@@ -374,7 +400,7 @@ DE.ranking <- function(exps, GeneList, factortab, sample.l,
       de <- topTable(fit2, coef=1, adjust.method="fdr", sort.by="P", number=length(sel.Genes))
       ranks <- ScalN(de$B)
       names(ranks) = rownames(de)
-      print(head(ranks))
+      #print(head(ranks))
       return(ranks)
     },
     error = function(e){ 
