@@ -1,9 +1,7 @@
-Untitled
+Network Correlation Analysis (NECorr)
 ================
 
-# Network Correlation Analysis (NECorr)
-
-## Contents
+# Contents
 
 - [Overview](#overview)
 - [Repo Contents](#repo-contents)
@@ -13,7 +11,7 @@ Untitled
 - [License](./LICENSE)
 - [Citation](#citation)
 
-## Overview
+# Overview
 
 NECorr is a R package based on multiple-criteria decision-making
 algorithms. With the objective of ranking genes and their interactions
@@ -21,23 +19,23 @@ in a selected condition or tissue, NECorr uses molecular network
 topology as well as global transcriptomics analysis to find
 condition/tissue-specific hub genes and their regulators.
 
-## Repo Contents
+# Repo Contents
 
 - [R](./R): `R` package code.
 - [man](./man): package manual for help in R session.
 - [int](./data): test data using dummies datasets and model.
 - [tests](./tests): `R` test with the data.
 
-## System Requirements
+# System Requirements
 
-### Hardware Requirements
+## Hardware Requirements
 
 The runtimes below are generated using a computer with the recommended
 specs (16 GB RAM, 4 <cores@3.3> GHz) and internet of speed 25 Mbps.
 
-### Software Requirements
+## Software Requirements
 
-#### OS Requirements
+### OS Requirements
 
 This package is supported for *Mac OS*, *Windows* and *Linux* operating
 systems. The package has been tested on the following systems:
@@ -50,7 +48,7 @@ standard computer with enough RAM to support the operations defined by a
 user. For minimal performance, this will be a computer with about 1 GB
 of RAM.
 
-##### Installing R version 3.4.2 on MacOs
+#### Installing R version 3.4.2 on MacOs
 
 the latest version of R can be installed as follows:
 
@@ -62,7 +60,7 @@ rm R-3.2.3.pkg
 
 Two minutes will be required to install R on *Mac Os*.
 
-##### Package dependencies
+#### Package dependencies
 
 Users should install the following packages prior to installing
 `NECorr`, from an `R` terminal:
@@ -74,7 +72,7 @@ biocLite(c("Biobase", "limma", "supraHex"))
 install.packages("dnet")
 ```
 
-### Package Versions
+## Package Versions
 
 The `NECorr` package functions with all packages in their latest
 versions as they appear on `CRAN` on October 15, 2017. Users can check
@@ -98,7 +96,7 @@ hash: 2.2.6
 supraHex: 1.14.0
 ```
 
-## Installation Guide
+# Installation Guide
 
 From an `R` session, type:
 
@@ -110,7 +108,7 @@ install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=FALSE, upgra
 The package should take approximately 20 seconds to install with
 vignettes on a recommended computer.
 
-### Instructions for Use
+## Instructions for Use
 
 Please see the vignettes for help using the package:
 
@@ -119,7 +117,7 @@ vignette("Necorr", package="NECorr")
 vignette("gini", package="NECorr")
 ```
 
-### Demo
+## Demo
 
 Use the the scripts with the small demo dataset present in the data
 folder:
@@ -128,7 +126,7 @@ folder:
 tests/test.script.R
 ```
 
-## Citation
+# Citation
 
 For citing code or the paper, please use [this
 citation](https://www.biorxiv.org/content/early/2018/05/21/326868).
