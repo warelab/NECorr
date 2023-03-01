@@ -1,9 +1,11 @@
 ---
-title: "README"
-author: "Christophe Liseron-Monfils"
-date: "7/5/2018"
-output: html_document
+title: "Untitled"
+output: github_document
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 # Network Correlation Analysis (NECorr)
 
@@ -16,11 +18,12 @@ output: html_document
 - [Instructions for Use](#instructions-for-use)
 - [License](./LICENSE)
 - [Citation](#citation)
-# Overview
+
+## Overview
 
 NECorr is a R package based on multiple-criteria decision-making algorithms. With the objective of ranking genes and their interactions in a selected condition or tissue, NECorr uses molecular network topology as well as global transcriptomics analysis to find condition/tissue-specific hub genes and their regulators.
 
-# Repo Contents
+## Repo Contents
 
 - [R](./R): `R` package code.
 - [man](./man): package manual for help in R session.
@@ -28,17 +31,14 @@ NECorr is a R package based on multiple-criteria decision-making algorithms. Wit
 - [tests](./tests): `R` test with the data.
 
 
-# System Requirements
+## System Requirements
 
-## Hardware Requirements
-
-
+### Hardware Requirements
 The runtimes below are generated using a computer with the recommended specs (16 GB RAM, 4 cores@3.3 GHz) and internet of speed 25 Mbps.
 
-## Software Requirements
+### Software Requirements
 
-### OS Requirements
-
+#### OS Requirements
 This package is supported for *Mac OS*, *Windows* and *Linux* operating systems. The package has been tested on the following systems:
 
 Linux: Redhat RHEL 7.4  
@@ -47,7 +47,7 @@ Mac OSX: OS X 11.2.3
 
 The NECorr packages requires the R version 3.4.2 or higher and a standard computer with enough RAM to support the operations defined by a user. For minimal performance, this will be a computer with about 1 GB of RAM. 
 
-#### Installing R version 3.4.2 on MacOs
+##### Installing R version 3.4.2 on MacOs
 
 the latest version of R can be installed as follows:
 
@@ -59,12 +59,7 @@ rm R-3.2.3.pkg
 
 Two minutes will be required to install R on *Mac Os*.
 
-#### Installing R on Linux (yum package manager)
-```
-sudo yum install R.x86_64
-```
-
-#### Package dependencies
+##### Package dependencies
 
 Users should install the following packages prior to installing `NECorr`, from an `R` terminal:
 
@@ -76,7 +71,7 @@ install.packages("dnet")
 
 ```
 
-#### Package Versions
+### Package Versions
 
 The `NECorr` package functions with all packages in their latest versions as they appear on `CRAN` on October 15, 2017. Users can check [CRAN snapshot](https://mran.microsoft.com/timemachine/) and [BioConductor](https://www.bioconductor.org/) for details. The versions of software are, specifically:
 ```
@@ -95,11 +90,11 @@ hash: 2.2.6
 supraHex: 1.14.0
 ```
 
-# Installation Guide
+## Installation Guide
 
 From an `R` session, type:
 
-```
+```{r }
 require(devtools)
 install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=FALSE, upgrade_dependencies=FALSE)  # install NECorr with the vignettes
 ```
@@ -111,7 +106,7 @@ The package should take approximately 20 seconds to install with vignettes on a 
 
 Please see the vignettes for help using the package:
 
-```
+```{r }
 vignette("Necorr", package="NECorr")
 vignette("gini", package="NECorr")
 ```
@@ -119,10 +114,10 @@ vignette("gini", package="NECorr")
 ### Demo
 
 Use the the scripts with the small demo dataset present in the data folder:
-```
+```{r }
 tests/test.script.R
 ```
-# Citation
+## Citation
 
 For citing code or the paper, please use [this citation](https://www.biorxiv.org/content/early/2018/05/21/326868).
 
