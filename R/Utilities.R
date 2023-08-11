@@ -172,6 +172,7 @@ activator_significant <- function(hub.int.significant=hub.int.significant,
       colnames(datagrid) <- cc
       rownames(datagrid) <- gene_name
       datagrid <- datagrid[order(datagrid$pagerank, decreasing = T),]
+      datagrid$pagerank <- ScalN(datagrid$pagerank)
       gene.rank.act.description <- left_join(rownames_to_column(datagrid), 
                                              rownames_to_column(Desc), 
                                              by = ("rowname" = "rowname"))

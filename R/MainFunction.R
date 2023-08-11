@@ -361,6 +361,8 @@ Necorr <- function(networkFile = "",
   message("effector calculation done")
   gene.rank.eff <- gene.rank.e.description$gene.rank.eff
   names(gene.rank.eff) <- rownames(gene.rank.e.description)
+  
+  
   #end.time <- Sys.time()
   #time.taken <- end.time - start.time
   #print(time.taken)
@@ -371,11 +373,14 @@ Necorr <- function(networkFile = "",
   hub.int.ranks <- hub_edge_significance(network.int=network.int, 
                                          gene.rank.hash=gene.rank.hash)
   hub.int.significant <- subset(hub.int.ranks, p2 < 0.05)
+  #------------------------------------------------------------------------------------------------
+  # Cleaning results for display
+  MCDAnode <- gene.rank.h.description[order(gene.rank.h.description$gene.rank.h, decreasing = T),] 
   MLconfirmed <- as.vector(
     gene.rank.e.description$rowname[which(gene.rank.e.description$gene.rank.eff > 0.6)])
   
-  MCDAnode <- gene.rank.h.description[gene.rank.h.description$rowname %in% MLconfirmed, ]
-  MCDAnode <- MCDAnode[order(MCDAnode$gene.rank.h, decreasing = T),] 
+  MCDAnode_ML <- gene.rank.h.description[gene.rank.h.description$rowname %in% MLconfirmed, ]
+  MCDAnode_ML  <- MCDAnode_ML[order(MCDAnode_ML$gene.rank.h, decreasing = T),] 
   
   MCDAedge <- hub.int.significant[unique(which(hub.int.significant$targetIDs %in% MLconfirmed),
                                          which(hub.int.significant$sourceIDs %in% MLconfirmed)), ]
@@ -419,15 +424,16 @@ Necorr <- function(networkFile = "",
   #print(head(hub.act.net))
   
   res <- list(
-    hub_nodes_rank_NBsig = MCDAnode, # hub gene ranking present in ML
-    hub_edges_rank_NBsig = MCDAedge, # edge including hubs ranked a8nd present in ML
-    regulator_rank = actres, # regulator based on PageRank from extended network around hub genes
-    netstat = netstat, # network statistic
-    coexpres = int.sig, # co-expression ranking
-    deg_rank = DE.ranks, # Differentially expressed ranking
-    NBeff_rank = gene.rank.e.description, # Naives Bayes effector gene ranking
-    edge_rank = coexprs.pvals, # interaction importance
-    tsi_rank = tslist # tissue specificity
+    necorr_hub_nodesRank = MCDAnode, # hub gene ranking using MCDA linear model
+    necorr_hub_edgesRank = MCDAedge, # edge including hubs ranked using MCDA linear model
+    necorr_reg = actres, # regulator based on PageRank from extended network around hub genes
+    necorr_hub_nodesML = MCDAnode_ML ## hub gene ranking present in ML
+    #netstat = netstat, # network statistic
+    #coexpres = int.sig, # co-expression ranking
+    #deg_rank = DE.ranks, # Differentially expressed ranking
+    #NBeff_rank = gene.rank.e.description, # Naives Bayes effector gene ranking
+    #edge_rank = coexprs.pvals, # interaction importance
+    #tsi_rank = tslist # tissue specificity
     #hub_edge_rank = hub.int.ranks, # hub interaction gene ranking
     #gene.rank.act.significant = gene.rank.act.significant,
     #activator_rank = gene.rank.act.description, # activator gene ranking
