@@ -30,8 +30,10 @@ condition/tissue-specific hub genes and their regulators.
 
 ## Hardware Requirements
 
-The runtimes below are generated using a computer with the recommended
-specs (16 GB RAM, 4 <cores@3.3> GHz) and internet of speed 25 Mbps.
+The package require a long running time depending of the size of
+molecular network. A computer with 16 GB RAM is recommended to run the
+package. The necessary C++ or GCC libraries are needed as the software
+is running partially on Rccp.
 
 ## Software Requirements
 
@@ -41,89 +43,58 @@ This package is supported for *Mac OS*, *Windows* and *Linux* operating
 systems. The package has been tested on the following systems:
 
 Linux: Redhat RHEL 7.4  
-Mac OSX: OS X 11.2.3
+Mac OSX: OS X 11.2.3; and 12.6
 
 The NECorr packages requires the R version 3.4.2 or higher and a
 standard computer with enough RAM to support the operations defined by a
 user. For minimal performance, this will be a computer with about 1 GB
 of RAM.
 
-#### Installing R version 3.4.2 on MacOs
+### Installing R version 3.5 on Linux
 
-the latest version of R can be installed as follows:
+The latest version of R can be installed as follows on *Linux*:
 
 ``` bash
 wget https://cran.rstudio.com/bin/macosx/R-3.4.2.pkg
-sudo installer -pkg R-3.4.2.pkg -target /
-rm R-3.2.3.pkg
-```
-
-Two minutes will be required to install R on *Mac Os*.
-
-#### Package dependencies
-
-Users should install the following packages prior to installing
-`NECorr`, from an `R` terminal:
-
-``` bash
-install.packages(c("Rcpp", "RcppParallel", "klaR", "igraph", "foreach", "doSNOW", "RColorBrewer", "gplots", "devtools", "hash"))
-source("https://bioconductor.org/biocLite.R")
-biocLite(c("Biobase", "limma", "supraHex"))
-install.packages("dnet")
-```
-
-## Package Versions
-
-The `NECorr` package functions with all packages in their latest
-versions as they appear on `CRAN` on October 15, 2017. Users can check
-[CRAN snapshot](https://mran.microsoft.com/timemachine/) and
-[BioConductor](https://www.bioconductor.org/) for details. The versions
-of software are, specifically:
-
-``` r
-Rcpp: 0.12.17
-klaR: 0.6-12
-igraph: 1.0.1
-dnet: 1.1.3 
-foreach: 1.4.3
-doSNOW: 1.0.15 
-RColorBrewer: 1.1-2
-gplots: 3.0.1
-devtools: 1.13.2
-Biobase: 2.36.2
-limma: 3.32.10 
-hash: 2.2.6
-supraHex: 1.14.0
+sudo installer -pkg R-3.5.2.pkg -target /
 ```
 
 # Installation Guide
+
+## Devtools
 
 From an `R` session, type:
 
 ``` r
 require(devtools)
-install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=FALSE, upgrade_dependencies=FALSE)  # install NECorr with the vignettes
+install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)  
 ```
 
 The package should take approximately 20 seconds to install with
 vignettes on a recommended computer.
 
-## Instructions for Use
+## Package Versions
+
+The `NECorr` package dependencies will be installed automatically. The
+following [BioConductor](https://www.bioconductor.org/) package will
+need to be installed separately
+
+``` r
+Biobase: 2.54.0
+BiocGenerics: 0.40.0
+limma: 3.50.3 
+AnnotationDbi: 1.56.2
+GenomeInfoDbData: 1.2.7 
+supraHex: 1.14.0
+```
+
+# Instructions for Use
 
 Please see the vignettes for help using the package:
 
 ``` r
 vignette("Necorr", package="NECorr")
 vignette("gini", package="NECorr")
-```
-
-## Demo
-
-Use the the scripts with the small demo dataset present in the data
-folder:
-
-``` r
-tests/test.script.R
 ```
 
 # Citation
