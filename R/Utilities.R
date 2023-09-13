@@ -10,7 +10,9 @@
 effector_significance <- function(eff.m.param, Desc, j.nB, sample.l){
   tryCatch(
     expr = {
-      prob.pred <- suppressWarnings(predict(j.nB, type="prob", newdata = eff.m.param, threshold = 0.01))
+      prob.pred <- suppressWarnings(predict(j.nB, type="prob",
+                                            newdata = eff.m.param,
+                                            threshold = 0.01))
       gene.rank.eff <- (prob.pred$posterior)[,2]
       #
       gene.rank.eff = gene.rank.eff[order(gene.rank.eff, decreasing=TRUE)]
@@ -22,14 +24,6 @@ effector_significance <- function(eff.m.param, Desc, j.nB, sample.l){
       
       gene.rank.e.description <- as.data.frame(gene.rank.e.description)
       colnames(gene.rank.eff)[1] <- sample.l
-      #
-      #gene.rank.eff.hash <- hash()
-      #print("building eff rank hash")
-      #geneIDs <- row.names(gene.rank.eff)
-      #for (i in 1:nGenes){
-      #  geneRank <- as.numeric(gene.rank.eff[i,1])
-      #  gene.rank.eff.hash[[geneIDs[i]]] <- geneRank
-      #}
       return(gene.rank.e.description)
     },
     error = function(e){ 
@@ -64,9 +58,8 @@ hub_edge_significance <- function(network.int=network.int, gene.rank.hash=gene.r
         ranks.sum[i] <- sum(gene.rank.hash[[sourceIDs[i]]], gene.rank.hash[[targetIDs[i]]])
       }
       hub.int.ranks <- data.frame(sourceIDs,targetIDs,ranks.sum)
-      # stopCluster(cl2)
       break.points <- c(-Inf, unique(sort(as.numeric(hub.int.ranks[,3]))), Inf)
-      p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE )  ####### !!!!!
+      p2 <- cut( as.numeric(hub.int.ranks[,3]), breaks=break.points, labels=FALSE ) 
       p2 <- 1 - p2/length(break.points)
       hub.int.ranks <- as.data.frame(cbind(hub.int.ranks,p2))
       hub.int.ranks$p2 <- as.numeric(as.character(hub.int.ranks$p2))
@@ -100,7 +93,6 @@ effector_edge_significance <- function(network.int=network.int,
       eff_ranks.sum <- rep(1,length(targetIDs))
       
       gene.rank.eff.hash <- hash()
-      #print("building eff rank hash")
       gene.rank.eff = as.data.frame(gene.rank.eff)
       geneIDs <- row.names(gene.rank.eff)
       for (i in 1:nGenes){
@@ -114,7 +106,6 @@ effector_edge_significance <- function(network.int=network.int,
         eff_ranks.sum[i] <- sum(gene.rank.eff.hash[[sourceIDs[i]]], gene.rank.eff.hash[[targetIDs[i]]])
       }
       eff.int.ranks <- data.frame(sourceIDs,targetIDs,eff_ranks.sum)
-      # stopCluster(cl3)
       break.points <- c(-Inf, unique(sort(as.numeric(eff.int.ranks[,3]))), Inf)
       p2 <- cut( as.numeric(eff.int.ranks[,3]), breaks=break.points, labels=FALSE )
       p2 <- 1 - p2/length(break.points)
@@ -139,13 +130,13 @@ effector_edge_significance <- function(network.int=network.int,
 #' activator_significant
 #'
 #' @param hub.int.significant significance of the hub genes
-#' @param network.int netowrk edges
+#' @param network.int network edges
 #' @Desc description file genes and gene names
 #' @description define the activator significance
 #' @return res 
-activator_significant <- function(hub.int.significant=hub.int.significant, 
-                                  network.int=network.int,
-                                  Desc=Desc){
+activator_significant <- function(hub.int.significant = hub.int.significant, 
+                                  network.int = network.int,
+                                  Desc = Desc){
   tryCatch(
     expr = {
       # find genes that are significant in the hub subnetwork in the complete network
@@ -154,9 +145,6 @@ activator_significant <- function(hub.int.significant=hub.int.significant,
       sc.sig.hub <- subset(network.int, network.int[,1] %in% sig.hub)
       tg.sig.hub <- subset(network.int, network.int[,2] %in% sig.hub)
       net.extension.sig.hub <- rbind(sc.sig.hub,tg.sig.hub)
-      #print("###### net.extension.sig.hub #######")
-      #print(head(net.extension.sig.hub))
-      ######
       g <- graph.data.frame(net.extension.sig.hub, directed = T)
       ## calculate the pagerank known as regulator
       pagerank<-page.rank(g)$vector
@@ -178,43 +166,6 @@ activator_significant <- function(hub.int.significant=hub.int.significant,
                                              by = ("rowname" = "rowname"))
       rownames(gene.rank.act.description) <- gene.rank.act.description$rowname
       gene.rank.act.description <- gene.rank.act.description[, -c(1,2)]
-      #print("### datagrid ###")
-      #print(head(gene.rank.act.description))
-      
-      ######
-      # ## change the names of the hub gene in the extented hub network using source genes
-      # change.sig.hubNames <- net.extension.sig.hub[,1] %in% sig.hub
-      # tmp<-as.character(net.extension.sig.hub[,1])
-      # tmp[change.sig.hubNames]<-"sig"
-      # net.extension.sig.hub[,1] <- tmp
-      # 
-      # ## change the names of the hub gene in the extend ed hub network using target genes
-      # change.sig.hubNames <- net.extension.sig.hub[,2] %in% sig.hub
-      # tmp <- as.character(net.extension.sig.hub[,2])
-      # tmp[change.sig.hubNames] <- "sig"
-      # net.extension.sig.hub[,2] <- tmp
-      # 
-      # ## network extended to putative regulator using source genes
-      # act.m.param <- net.extension.sig.hub
-      # sc.count <- rle(sort( act.m.param[,1] ))
-      # act.m.param$Count <- sc.count[ match(act.m.param[,1] , sc.count) ]
-      # 
-      # # gene ranking of linked to hub nodes
-      # gene.rank.act <- cbind(sc.count$values, sc.count$lengths)
-      # gene.rank.act <- gene.rank.act[order(as.numeric(gene.rank.act[,2]), decreasing=TRUE),]
-      # gene.rank.act <- gene.rank.act[ - which(gene.rank.act[,1] == "sig"),]
-      # 
-      # # add the genes that have 20% of the genes linked to hub genes
-      # gene.rank.act.significant <- gene.rank.act[which(gene.rank.act[,2] >= (length(sig.hub)*0.20)),]
-      # gene.rank.act.significant <- as.data.frame(gene.rank.act.significant)
-      # #print("###### gene.rank.act.significant #######")
-      # #print(head(gene.rank.act.significant))
-      # # write the putative activator genes
-      # gene.rank.act.b <- as.data.frame(gene.rank.act)
-      # gene.rank.act.description <- left_join(rownames_to_column(gene.rank.act.b), 
-      #                                        rownames_to_column(Desc), 
-      #                                        by = ("rowname" = "rowname"))
-      # gene.rank.act.description <- as.data.frame(gene.rank.act.description)
       res <- gene.rank.act.description
       return(res)
     },
@@ -377,7 +328,7 @@ DE.ranking <- function(exps, GeneList, factortab, sample.l,
       sel.Genes <- intersect(rownames(expression),GeneList)
       no.duplicate.col <- as.character(colnames(expression))
       colnames(expression) <- make.unique(no.duplicate.col)
-      expressio <- expression[sel.Genes,]
+      expressio <- expression[sel.Genes, ]
       design <- model.matrix(~ 0 + f)
       # DE (differential expression)
       eset <- ExpressionSet(assayData=expressio)
@@ -425,14 +376,14 @@ DE.ranking <- function(exps, GeneList, factortab, sample.l,
 #' @param network the network should be a list of interactions space by a line
 #' @return datagrid
 #' @export
-NetTopology <-function(network){
+NetTopology <- function(network){
   tryCatch(
     expr = {
       # pass to igraph the network that would transform in a graph object
       g <- graph.data.frame(network, directed = T)
       ## calculate the topology stats necessary for network statistics
-      betweenness_centrality <- betweenness(g,v=V(g),directed = F, normalized = T)
-      #betweenness_centrality <- betweenness.estimate(g,vids=V(g),directed = F, normalized = T)
+      betweenness_centrality <- betweenness(g,v=V(g), directed = F, normalized = T)
+      #betweenness_centrality <- betweenness.estimate(g,vids=V(g), directed = F, normalized = T)
       eigenvector_centrality<-evcent(g, scale = TRUE)
       # algorithm used by google to find webpages; this is an evolution of eigen-vector
       # not sure if applicable to biological data yet
@@ -484,6 +435,22 @@ ScalN <- function(x, ...) {
   return(res)
 }
 
+#' scaling_param
+#' @description
+#' rescaling the data from the parameter
+#' @param x vector with names of the genes
+#' @return res
+#' @export
+scaling_param <- function(x){
+  naming <- deparse(substitute(x))
+  x1 <- range(x[!is.infinite(x)])
+  x[is.infinite(x) & sign(x) < 0] <- x1[1]
+  x[is.infinite(x)] <- x1[2]
+  x <- as.data.frame(x)
+  x$x <- rescale(x$x, to=c(0,100))
+  colnames(x) <- naming
+  return(x)
+}
 
 #' fishersMethod
 #' @description combine p-values Fisher method to have overall importance of
