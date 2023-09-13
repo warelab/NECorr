@@ -168,7 +168,7 @@ IUTtsi <- function(data, geneTS, targetSample, expThreshold){
           tsi.order$RowNames <- row.names(tsi.order)
           #
           y.sort <- left_join(y.sort, tsi.order, by = 'RowNames')
-          rownames(y.sort) <- y.sort$RowNames ###########
+          rownames(y.sort) <- y.sort$RowNames 
           y.sort <- y.sort[,-which(colnames(y.sort) == "RowNames")]
           y.sort <- as.matrix(y.sort)
         }else if(Glen == 1){ # if there is only one tissue-selective genes
@@ -190,12 +190,9 @@ IUTtsi <- function(data, geneTS, targetSample, expThreshold){
         }
         
       }else{
-        #print("noTSI")
         y.sort <- matrix(nrow = 0, ncol = length(colnames(data))+1,
                          dimnames = list(c(), c(colnames(data), "tsi.order")))
       }
-      #print("######## y.sort IUTtsi ###########")
-      #print(head(y.sort))
       return(y.sort)
     },
     error = function(e){ 
@@ -215,31 +212,25 @@ IUTtsi <- function(data, geneTS, targetSample, expThreshold){
 #' @description define the tissue excluded genes from the tissue/condition of interest
 #' @param data expression data
 #' @param geneTS genes with tissue specific proprieties
-#' @param targetSample target sample name
-#' @param expThreshold threshold of the expression for RNAseq around 10 for microarray
-#' could be different according to the platform
 #' @return y.sort
 #' @export
-IUTtse <- function(data, geneTS, targetSample, expThreshold){
+IUTtse <- function(data, geneTS){
   tryCatch(
     expr = {
       tse.order <- c()
       Glen <- length(geneTS[which(geneTS == TRUE)])
-      #print(colnames(data))
       if(Glen > 0){
         geneTS <- geneTS[which(geneTS == TRUE)]
         if(Glen > 1){
           tse <- apply(data[names(geneTS), ], 1, TSE)
           tse.order <- tse[order(tse, decreasing = TRUE)]
           y <- data[names(tse.order),]
-          y.sort <- as.matrix(y[which(y[, targetSample] > expThreshold), ])
           #
-          y.sort <- as.data.frame(y.sort) 
+          y.sort <- as.data.frame(y)
           y.sort$RowNames <- row.names(y.sort)
           # 
           tse.order <- as.data.frame(tse.order);
           tse.order$RowNames <- row.names(tse.order)
-          #
           y.sort <- left_join(y.sort, tse.order, by = 'RowNames')
           rownames(y.sort) <- y.sort$RowNames ###########
           y.sort <- y.sort[,-which(colnames(y.sort) == "RowNames")]
@@ -262,12 +253,9 @@ IUTtse <- function(data, geneTS, targetSample, expThreshold){
           y.sort <- as.matrix(y.sort)
         }
       }else{
-        #print("noTSE")
         y.sort <- matrix(nrow = 0, ncol = length(colnames(data))+1,
                          dimnames = list(c(), c(colnames(data),"tse.order")))
       }
-      #print("######## y.sort IUTtse ###########")
-      #print(head(y.sort))
       return(y.sort)
     },
     error = function(e){ 
@@ -327,8 +315,8 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha){
       #alpha <- 0.05
       thresh <- 1-(1 - alpha)^(1/gene)
       crit.value <- qt(1-thresh, nrarrays-sFactors[sIndex])
-      # find genes with all significant t-test for the chosen sample compared each
-      # other ones.
+      # find genes with all significant t-test for the chosen sample 
+      # compared each other ones.
       # print(head(tstattab)) #
       if(isTRUE(nrow(tstattab) > 0)){
         StudentSumP <- rowSums(tstattab > crit.value)
@@ -381,16 +369,16 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha){
 #' the percentage of (1 -threshold for the Tindex and the TSI tests)
 #' @param filter the minimal expression level for the tissue/condition of
 #' interest; the default is set at 100; expression of 100 TPM
-#' @return list.all csv.table output for each type of analysis will be written in the
-#' table folder
+#' @return list.all csv.table output for each type of analysis will be written 
+#' in the table folder
 #' @export
 ts.IUT <- function(name = "exp", eset, tissues, target,
-                   threshold = 0.05, filter = 20){
+                   threshold = 0.05, filter = 10){
   tryCatch(
     expr = {
       # Reorganize Data
-      eset <- DiscNULLrow(eset) ##if eset in log 2 scale re-transform it 2**eset to
-      ##have the right scale
+      eset <- DiscNULLrow(eset) 
+      # if eset in log 2 scale re-transform it 2**eset to have the right scale
       # Discard  NULL expression
       # Reorganize expression data for the tissue specific tests
       org.nset <- factOrg(eset, tissues)
@@ -401,7 +389,7 @@ ts.IUT <- function(name = "exp", eset, tissues, target,
       meansFactor <- do.call("cbind", tapply(1:ncol(m.eset), org.nset$orgFact,
                                              function(x) rowMeans(m.eset[x])))
       m.eset <- as.matrix(m.eset)
-      # Intersection union test - using Intersection-Union Test (Berger et al) -
+      # Intersection union test - using Intersection-Union Test (Berger et al)
       # TSI
       rankedTSE <- c()
       rankedTSI <- c()
@@ -409,10 +397,7 @@ ts.IUT <- function(name = "exp", eset, tissues, target,
       samples <- unique(org.nset$orgFact)
       t.iut <- IUTest(m.eset, factors, as.numeric(which(samples==target)),  
                       threshold)
-      tm.iut <- meansFactor[names(t.iut$TS)[which(t.iut$TS == TRUE)], ]
       m.iut.tsi.filt <- IUTtsi(meansFactor, t.iut$TS, target, filter)
-      #print("###### m.iut.tsi.filt ######")
-      #print(head(m.iut.tsi.filt))
       # Rank the tissue selective genes using the Tissue Selective Index
       # for each gene TSI for activation and modify for tissue repression
       if((length(rownames(m.iut.tsi.filt)) > 1) == TRUE){
@@ -423,12 +408,12 @@ ts.IUT <- function(name = "exp", eset, tissues, target,
       }else{ 
         rankedTSI <- cbind(meansFactor, tsi.order = rep(0, nrow(meansFactor)))
       }
-      m.iut.e <- meansFactor[names(t.iut$TE)[which(t.iut$TE == TRUE)], ]
-      m.iut.tse.filt <- IUTtse(meansFactor, t.iut$TE, target, filter)
+      # TSE
+      m.iut.tse.filt <- IUTtse(meansFactor, t.iut$TE)
       # Rank the tissue selective genes using the Tissue Selective Index
       # for each gene TSI for activation and modify for tissue repression
       if((length(rownames(m.iut.tse.filt)) > 1) == TRUE){
-        m.iut.tse.filt <- m.iut.tse.filt[which(m.iut.tse.filt[,target] > filter), ]
+        m.iut.tse.filt <- m.iut.tse.filt[which(m.iut.tse.filt[,target] > filter ), ]
         others2 <- meansFactor[setdiff(rownames(meansFactor), rownames(m.iut.tse.filt)), ]
         others2 <- cbind(others2, tse.order = rep(0, nrow(others2)))
         rankedTSE <- rbind(m.iut.tse.filt, others2) 

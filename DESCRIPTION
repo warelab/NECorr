@@ -1,7 +1,7 @@
 Package: NECorr
 Type: Package
 Title: Gene Regulatory Network Correlations
-Version: 1.0.5
+Version: 2.0.0
 Author: Christophe Liseron-Monfils, Andrew Olson
 Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
@@ -13,6 +13,7 @@ LazyDataCompression: xz, zip2, gzip
 Imports:
     StanHeaders,
     base,
+    scales,
     Biobase,
     devtools,
     dnet,
