@@ -332,7 +332,7 @@ DE.ranking <- function(exps, GeneList, factortab, sample.l,
       design <- model.matrix(~ 0 + f)
       # DE (differential expression)
       eset <- ExpressionSet(assayData=expressio)
-      colnames(design) <- sample.names # Assigns column names.
+      colnames(design) <- gsub("^f", "", colnames(design)) # Assigns column names.
       fit <- lmFit(eset, design)
       other.names = sample.names[which(sample.names != sample.l)]
       equation <- noquote(paste0(noquote(sample.l), " - ((",
