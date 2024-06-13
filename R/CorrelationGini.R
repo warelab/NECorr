@@ -12,10 +12,11 @@ multiCorr <- function(x ,net= NA,
   tryCatch(
     expr = {
       corMAT <- c()
-      corMAT <- giniR(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=sigmethod)
+      runtime_giniR <- system.time(corMAT <- giniR(edges=net, expression=x, bootstrapIterations=pernum, statCutoff=sigmethod))
+      cat("Runtime giniR (seconds):", runtime_giniR["elapsed"], "\n")
       return(corMAT)
     },
-    error = function(e){ 
+    error = function(e){
       message("Error during multiCorr running")
       message(e)
     },

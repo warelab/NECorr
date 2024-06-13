@@ -2,6 +2,7 @@
 #include <RcppParallel.h>
 #include <iostream>
 #include <algorithm>
+#include <random>
 #include <map>
 
 //[[Rcpp::depends(RcppParallel)]]
@@ -13,19 +14,19 @@ using namespace std;
 struct expressionRank : public Worker {
   const RMatrix<double> data;
   RMatrix<int> rank;
-  
+
   expressionRank(const NumericMatrix data, IntegerMatrix rank)
     : data(data), rank(rank) {
   }
-  
+
   void operator()(size_t begin, size_t end) {
     for(size_t i = begin; i < end; i++) {
       RMatrix<double>::Row row = data.row(i);
       RMatrix<int>::Row rankRow = rank.row(i);
-      
+
       vector<double> sortedRow(row.length());
       partial_sort_copy(row.begin(),row.end(),sortedRow.begin(),sortedRow.end());
-      
+
       for(int k=0;k<row.length();k++) {
         vector<double>::iterator it = find(sortedRow.begin(),sortedRow.end(),row[k]);
         int r = it - sortedRow.begin();
@@ -46,16 +47,16 @@ struct expressionOffsets : public Worker {
   const CharacterVector sourceNames, targetNames;
   map<string,int> nameToOffset;
   IntegerVector source, target;
-  
+
   expressionOffsets(const CharacterVector sourceNames, const CharacterVector targetNames,
                     map<string,int> nameToOffset,
                     IntegerVector source, IntegerVector target)
     : sourceNames(sourceNames), targetNames(targetNames), nameToOffset(nameToOffset), source(source), target(target)  {
   }
-  
+
   void operator()(size_t begin, size_t end) {
     // iterate over the pairs and store the offset or -1
-    
+
     for(size_t i = begin; i < end; i++) {
       string s = as<string>(sourceNames[i]);
       map<string,int>::iterator it = nameToOffset.find(s);
@@ -87,6 +88,47 @@ unsigned int xorshift128(void) {
   return w;
 }
 
+std::random_device rd;
+std::mt19937_64 rng(rd());
+
+double permutationTest(double originalGCC, vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm) {
+  int n = xData.size();
+  vector<int> vec(yIdx);
+
+  // precompute some parts of the GCC
+  double denominator=0;
+  for(int i=0; i<n; i++) {
+    denominator += wt[i] * xData[xIdx[i]];
+  }
+  if (denominator == 0) {
+    return 1.0;
+  }
+  int m = 0; // number of times subsample gcc is more extreme than originalGCC
+  for(int p=0; p<perm; p++) {
+    std::shuffle(vec.begin(), vec.end(), rng);
+    double numerator=0;
+    for(int i=0; i<n; i++) {
+      numerator += wt[i] * xData[vec[i]];
+    }
+    double gcc = numerator/denominator;
+    if (originalGCC > 0) {
+      if (gcc > originalGCC) {
+        m++;
+      }
+    }
+    else if (gcc < originalGCC) {
+      m++;
+    }
+    if ((p == 10 && m/p > 0.5)
+          || (p == 100 && m/p > 0.2)
+          || (p == 500 && m/p > 0.1)
+       ) { // get out early
+      perm = p;
+    }
+  }
+  return (double)m/perm;
+}
+
 double confidenceIntervalAndPvalue(double originalGCC, vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm, double confidence, double &min, double &max) {
   vector<double> xData2 = xData;
   int n = xData.size();
@@ -95,13 +137,13 @@ double confidenceIntervalAndPvalue(double originalGCC, vector<double> &xData, ve
   vector<int> yRank (n);
   vector<int> xIdx2 (n);
   vector<int> yIdx2 (n);
-  
+
   vector<vector<int> > xRankPos (n);
   vector<vector<int> > yRankPos (n);
-  
+
   vector<double> scoreBins2000 (2000);
   vector<double> scoreBins20 (20);
-  
+
   for(int i=0;i<n;i++) {
     xRank[xIdx[i]] = i;
     yRank[yIdx[i]] = i;
@@ -202,9 +244,9 @@ struct scoreEdges : public Worker {
   const RVector<double> wt;
   const int bootstrapIterations;
   const double statCutoff;
-  
+
   RVector<double> gini, pvalue, mingini, maxgini;
-  
+
   scoreEdges(const IntegerVector source, const IntegerVector target,
              const NumericMatrix data, const IntegerMatrix rank, const NumericVector wt,
              const int bootstrapIterations, const double statCutoff,
@@ -212,7 +254,7 @@ struct scoreEdges : public Worker {
     : source(source), target(target), data(data), rank(rank), wt(wt),
       bootstrapIterations(bootstrapIterations), statCutoff(statCutoff),
       gini(gini), pvalue(pvalue), mingini(mingini), maxgini(maxgini) {}
-  
+
   void operator()(size_t begin, size_t end) {
     for(size_t i=begin; i < end; i++) {
       gini[i] = 0.0;
@@ -239,13 +281,15 @@ struct scoreEdges : public Worker {
         if (abs(gcc1) > abs(gcc2)) {
           gini[i] = gcc1;
           if (abs(gcc1) >= statCutoff) {
-            pvalue[i] = confidenceIntervalAndPvalue(gini[i], sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            // pvalue[i] = confidenceIntervalAndPvalue(gini[i], sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            pvalue[i] = permutationTest(gini[i], sd, sr, tr, w, bootstrapIterations);
           }
         }
         else {
           gini[i] = gcc2;
           if (abs(gcc2) >= statCutoff) {
-            pvalue[i] = confidenceIntervalAndPvalue(gini[i], td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            // pvalue[i] = confidenceIntervalAndPvalue(gini[i], td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
+            pvalue[i] = permutationTest(gini[i], td, tr, sr, w, bootstrapIterations);
           }
         }
       }
@@ -271,17 +315,17 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   // edges has (at least) two vectors: source and target
   // each is a list of gene identifiers
   // The expression data matrix has one row per gene, one column per sample
-  
+
   int nSamples = expression.ncol();
   int nGenes = expression.nrow();
   int nPairs = edges.nrows();
-  
+
   // calculate weight vector in advance
   NumericVector wt (nSamples);
   for(int j=0;j<nSamples;j++) {
     wt[j] = (double) 2*(j+1) - nSamples - 1;
   }
-  
+
   // create a map for gene names
   List dimNames = expression.attr("dimnames");
   vector<string> geneNames = dimNames[0];
@@ -289,7 +333,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   for(int i=0;i<nGenes;i++) {
     nameToOffset[geneNames[i]]=i;
   }
-  
+
   // map gene source and target gene names to offsets in the expression matrix
   IntegerVector source(nPairs);
   IntegerVector target(nPairs);
@@ -297,12 +341,12 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   CharacterVector targetNames = edges["target"];
   expressionOffsets expressionOffsets(sourceNames, targetNames, nameToOffset, source, target);
   parallelFor(0,nPairs,expressionOffsets);
-  
+
   // rank the samples for each gene
   IntegerMatrix rank(nGenes, nSamples);            // allocate space
   expressionRank expressionRank(expression, rank); // initialize worker
   parallelFor(0, nGenes, expressionRank);          // run with parallelFor
-  
+
   // calculate gini correlation coefficient and p-value for each pair of genes
   NumericVector gini(nPairs);
   NumericVector pvalue(nPairs);
@@ -310,7 +354,7 @@ DataFrame gini(DataFrame edges, NumericMatrix expression,
   NumericVector maxgini(nPairs);
   scoreEdges scoreEdges(source, target, expression, rank, wt, bootstrapIterations, statCutoff, gini, pvalue, mingini, maxgini);
   parallelFor(0, nPairs, scoreEdges);
-  
+
   return DataFrame::create(_["source"]= sourceNames, _["target"]= targetNames, _["gini"]=gini, _["pvalue"]=pvalue, _["mingini"]=mingini, _["maxgini"]=maxgini);
 }
 

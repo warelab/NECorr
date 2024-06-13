@@ -16,7 +16,6 @@ Imports:
     scales,
     Biobase,
     devtools,
-    dnet,
     doSNOW,
     foreach,
     gplots,
