@@ -91,6 +91,59 @@ unsigned int xorshift128(void) {
 std::random_device rd;
 std::mt19937_64 rng(rd());
 
+double permutationTests(double originalGCC, vector<double> &xData, vector<int> &xIdx, vector<double> &yData, vector<int> &yIdx, vector<double> &wt, int perm) {
+  int n = xData.size();
+  vector<int> yVec(yIdx);
+  vector<int> xVec(xIdx);
+  // precompute some parts of the GCC
+  double xDenominator=0;
+  double yDenominator=0;
+  for(int i=0; i<n; i++) {
+    xDenominator += wt[i] * xData[xIdx[i]];
+    yDenominator += wt[i] * yData[yIdx[i]];
+  }
+  if (xDenominator == 0 || yDenominator == 0) {
+    return 1.0;
+  }
+  int m = 0; // number of times subsample gcc is more extreme than originalGCC
+  // Create an index vector
+  std::vector<int> indices(xVec.size());
+  std::iota(indices.begin(), indices.end(), 0);
+  for(int p=0; p<perm; p++) {
+    // get a random shuffle
+    std::shuffle(indices.begin(), indices.end(), rng);
+    // apply to xVec and yVec
+    for (size_t i = 0; i < indices.size(); ++i) {
+      xVec[i] = xVec[indices[i]];
+      yVec[i] = yVec[indices[i]];
+    }
+    double xNumerator=0;
+    double yNumerator=0;
+    for(int i=0; i<n; i++) {
+      xNumerator += wt[i] * xData[yVec[i]];
+      yNumerator += wt[i] * yData[xVec[i]];
+    }
+    double xGCC = xNumerator/xDenominator;
+    double yGCC = yNumerator/yDenominator;
+    if (originalGCC > 0) {
+      if (xGCC > originalGCC || yGCC > originalGCC) {
+        m++;
+      }
+    }
+    else if (xGCC < originalGCC || yGCC < originalGCC) {
+      m++;
+    }
+    // checkpoints
+    if ((p == 10 && m/p > 0.5)
+          || (p == 100 && m/p > 0.2)
+          || (p == 500 && m/p > 0.1)
+    ) { // get out early
+      perm = p;
+    }
+  }
+  return (double)m/perm;
+}
+
 double permutationTest(double originalGCC, vector<double> &xData, vector<int> &xIdx, vector<int> &yIdx, vector<double> &wt, int perm) {
   int n = xData.size();
   vector<int> vec(yIdx);
@@ -278,19 +331,9 @@ struct scoreEdges : public Worker {
         }
         double gcc1 = calcGCC(sd, sr, tr, w, n);
         double gcc2 = calcGCC(td, tr, sr, w, n);
-        if (abs(gcc1) > abs(gcc2)) {
-          gini[i] = gcc1;
-          if (abs(gcc1) >= statCutoff) {
-            // pvalue[i] = confidenceIntervalAndPvalue(gini[i], sd, sr, tr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
-            pvalue[i] = permutationTest(gini[i], sd, sr, tr, w, bootstrapIterations);
-          }
-        }
-        else {
-          gini[i] = gcc2;
-          if (abs(gcc2) >= statCutoff) {
-            // pvalue[i] = confidenceIntervalAndPvalue(gini[i], td, tr, sr, w, bootstrapIterations, 0.95, mingini[i], maxgini[i]);
-            pvalue[i] = permutationTest(gini[i], td, tr, sr, w, bootstrapIterations);
-          }
+        gini[i] = abs(gcc1) > abs(gcc2) ? gcc1 : gcc2;
+        if (abs(gini[i]) >= statCutoff) {
+          pvalue[i] = permutationTests(gini[i], sd, sr, td, tr, w, bootstrapIterations);
         }
       }
     }
