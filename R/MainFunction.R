@@ -444,44 +444,44 @@ Necorr <- function(networkFile = "",
 #'
 #' @return netgraph
 #' @export
-necorr_graph <- function(hubnet, hub.int.significant,
-                         gene.rank.act.significant){
-  # link activator and hub significant sub-networks
-  sig.hub <- unique(c(as.character(hub.int.significant$V1),
-                     as.character(hub.int.significant$V2)))
-  if(( nrow(hubnet)>0) == TRUE){
-    #print(hub.act.net)
-    g <- graph.data.frame(hubnet, directed = T)
-
-    vcolors <- rep("cyan",length(V(g)$name))
-    vcolors[which(V(g)$name %in% sig.hub)] <- "red"
-
-    vsize.hub <- as.numeric(
-      gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
-    vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
-
-    temp <- as.data.frame(gene.rank.act.significant)
-    rownames(temp) <- temp[,1]
-    vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
-    vsize.act <- 2^(ScalN(vsize.act) + 2.21)
-    vsize <- c(vsize.act,vsize.hub)
-    vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
-    if (is.finite(vsize) & vsize>0){
-      # 	    mark.groups <- vcolors
-      # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
-      # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
-      #
-      # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
-      # pdf(file = title, width = 10, height = 10)
-      netgraph <- dnet::visNet(g, glayout=layout.fruchterman.reingold(g) ,
-                               vertex.shape="sphere",
-                               vertex.label = vlabel, edge.color = "grey",
-                               edge.arrow.size = 0.3, vertex.color = vcolors,
-                               vertex.frame.color = vcolors, newpage = F)
-      return(netgraph)
-    }
-  }
-  else{
-    message("no network can be drawn")
-    }
-  }
+# necorr_graph <- function(hubnet, hub.int.significant,
+#                          gene.rank.act.significant){
+#   # link activator and hub significant sub-networks
+#   sig.hub <- unique(c(as.character(hub.int.significant$V1),
+#                      as.character(hub.int.significant$V2)))
+#   if(( nrow(hubnet)>0) == TRUE){
+#     #print(hub.act.net)
+#     g <- graph.data.frame(hubnet, directed = T)
+#
+#     vcolors <- rep("cyan",length(V(g)$name))
+#     vcolors[which(V(g)$name %in% sig.hub)] <- "red"
+#
+#     vsize.hub <- as.numeric(
+#       gene.rank.h[V(g)$name[which(V(g)$name %in% sig.hub)],1])
+#     vsize.hub <- 2^(ScalN(vsize.hub) + 2.21)
+#
+#     temp <- as.data.frame(gene.rank.act.significant)
+#     rownames(temp) <- temp[,1]
+#     vsize.act  <- as.numeric(temp[V(g)$name[which(V(g)$name %in% temp[,1])],2])
+#     vsize.act <- 2^(ScalN(vsize.act) + 2.21)
+#     vsize <- c(vsize.act,vsize.hub)
+#     vlabel <- as.character(Desc[V(g)$name,"Associated.Gene.Name"])
+#     if (is.finite(vsize) & vsize>0){
+#       # 	    mark.groups <- vcolors
+#       # 	    mark.col <- visColoralpha(vcolors, alpha=0.2)
+#       # 	    mark.border <- visColoralpha(vcolors, alpha=0.2)
+#       #
+#       # 	    mark.groups= mark.groups,mark.col= mark.col, mark.border=mark.border,
+#       # pdf(file = title, width = 10, height = 10)
+#       netgraph <- dnet::visNet(g, glayout=layout.fruchterman.reingold(g) ,
+#                                vertex.shape="sphere",
+#                                vertex.label = vlabel, edge.color = "grey",
+#                                edge.arrow.size = 0.3, vertex.color = vcolors,
+#                                vertex.frame.color = vcolors, newpage = F)
+#       return(netgraph)
+#     }
+#   }
+#   else{
+#     message("no network can be drawn")
+#     }
+#   }

@@ -15,7 +15,6 @@ export(giniR)
 export(indexing.network)
 export(multiCorr)
 export(ts.IUT)
-export(necorr_graph)
 export(ScalN)
 import(tibble)
 import(purrr)
@@ -40,5 +39,3 @@ importFrom("igraph", "degree", "graph.data.frame", "betweenness", "evcent",
 importFrom("grDevices", "colorRampPalette", "dev.off", "pdf")
 importFrom(stats, complete.cases, model.matrix, pchisq, cor.test,
            predict, qt, var)
-
-
