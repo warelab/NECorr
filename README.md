@@ -46,17 +46,23 @@ the package. The necessary C++ or GCC libraries are needed as the
 software is running partially on Rccp. \### Software Requirements Ensure
 you have R (version 4.3 or higher) installed on your system. You can
 download it from [CRAN](https://cran.r-project.org/). The package
-requires the following R packages: - `data.table` - `dplyr` - `igraph` -
-`Hmisc` - `boot` - `fdrtool` - `Rcpp` - `RcppParallel` - `parallel` -
-`ggplot2` - `ggraph` - `visNetwork` - `matrixStats` - `purrr` -
-`scales` - `tibble` - `tidyr` - `rlang` - `WGCNA` - `impute` -
-`devtools` (for installation from GitHub) Most of the `NECorr` package
-dependencies will be installed automatically. However, the above
-packages may require manual installation if not already present in your
-R environment. The following
-[BioConductor](https://www.bioconductor.org/) package will need to be
-installed separately - `Biobase` - `BiocGenerics` - `limma` -
-`AnnotationDbi` - `GenomeInfoDbData` - `supraHex`
+requires the following R packages: -
+
+-   `devtools` (for installation from GitHub) Most of the `NECorr`
+    package dependencies will be installed automatically. However, the
+    above packages may require manual installation if not already
+    present in your R environment. The following
+    [BioConductor](https://www.bioconductor.org/) package will need to
+    be installed separately - `Biobase` - `BiocGenerics` - `limma` -
+    `AnnotationDbi` - `GenomeInfoDbData` - `supraHex`
+
+-   `data.table` `dplyr` `igraph` `matrixStats` `purrr`
+
+-   `Hmisc` `boot` `fdrtool` `impute`
+
+-   `Rcpp` `RcppParallel` `parallel`
+
+-   `ggplot2` `ggraph` `visNetwork` `scales` `tibble` `tidyr` `rlang`  
 
 ## Installation Steps
 

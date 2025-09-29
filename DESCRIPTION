@@ -1,42 +1,42 @@
 Package: NECorr
 Type: Package
-Title: Gene Regulatory Network Correlations
-Version: 2.1.0
-Author: Christophe Liseron-Monfils, Andrew Olson
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: MIT  + file LICENSE
+Title: NECorr - Network Expression Correlation Ranking
+Version: 3.0.0
+Authors@R: c(
+    person("Christophe", "Liseron-Monfils", role = c("aut")),
+    person("Andrew", "Olson", role = c("aut")),
+    person("Your", "Name", email = "you@example.com", role = c("cre")))
+Description: NECorr integrates molecular network topology and expression correlation 
+    to prioritise candidate genes for specific conditions.
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-LazyDataCompression: xz, zip2, gzip
-biocViews: Biobase, limma
-Imports:
-    StanHeaders,
-    base,
-    scales,
-    Biobase,
-    devtools,
-    doSNOW,
-    foreach,
-    gplots,
-    grDevices,
-    hash,
+Depends: R (>= 4.0)
+Imports: 
     igraph,
-    klaR,
+    ggplot2,
+    ggraph,
+    visNetwork,
     limma,
-    plyr,
-    dplyr,
+    Biobase,
     data.table,
+    dplyr,
+    matrixStats,
+    patchwork,
     purrr,
+    scales,
     tibble,
-    RColorBrewer,
-    Rcpp (>= 1.0.5),
-    RcppParallel,
-    ROCR
-LinkingTo:
+    tidyr,
     Rcpp,
-    RcppParallel (>= 5.0.3)
-SystemRequirements: GNU make, C++11
-RoxygenNote: 7.1.1
-Suggests:
+    RcppParallel,
+    parallel,
+    rlang,
+    WGCNA,
+    impute
+Remotes:
+    bioc::impute
+LinkingTo: Rcpp, RcppParallel
+Roxygen: list(markdown = TRUE)
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+RoxygenNote: 7.3.2
