@@ -1,9 +1,6 @@
 ---
 title: "Network Expression Correlation Ranking (NECorr)"
 output: md_document
-editor_options: 
-  markdown: 
-    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -20,28 +17,18 @@ knitr::opts_chunk$set(echo = TRUE)
 -   [License](./LICENSE)
 -   [Citation](#citation)
 
-**NECorr** is an R package designed to integrate molecular network
-topology with expression correlation to prioritize candidate genes for
-specific conditions. This package provides a comprehensive suite of
-tools for analyzing gene expression data within the context of network
-structures, offering insights into potential regulatory mechanisms.
+**NECorr** is an R package designed to integrate molecular network topology with expression correlation to prioritize candidate genes for specific conditions. This package provides a comprehensive suite of tools for analyzing gene expression data within the context of network structures, offering insights into potential regulatory mechanisms.
 
 # Overview {#Overview}
 
 ## Description
 
-NECorr is a R package based on multiple-criteria decision-making
-algorithms using Entropy (EWM). With the objective of ranking genes and
-their interactions in a selected condition or tissue, NECorr uses
-molecular network topology as well as global transcriptomics analysis to
-find condition/tissue-specific hub genes and their regulators.
+NECorr is a R package based on multiple-criteria decision-making algorithms using Entropy (EWM). With the objective of ranking genes and their interactions in a selected condition or tissue, NECorr uses molecular network topology as well as global transcriptomics analysis to find condition/tissue-specific hub genes and their regulators.
 
 ## Features
 
--   Calculate multiple correlation coefficients (Gini, Pearson,
-    Spearman, Kendall) efficiently.
--   Integrate network topology with expression data for comprehensive
-    analysis.
+-   Calculate multiple correlation coefficients (Gini, Pearson, Spearman, Kendall) efficiently.
+-   Integrate network topology with expression data for comprehensive analysis.
 -   Prioritize candidate genes based on network expression correlation.
 -   Utilize bootstrapping methods for robust statistical inference.
 
@@ -51,30 +38,21 @@ find condition/tissue-specific hub genes and their regulators.
 
 ### Hardware Requirements
 
-This package is supported for *Mac OS*, *Windows* and *Linux* operating
-systems. The package require a long running time depending of the size
-of molecular network. A computer with 16 GB RAM is recommended to run
-the package. The necessary C++ or GCC libraries are needed as the
-software is running partially on Rccp. \### Software Requirements Ensure
-you have R (version 4.3 or higher) installed on your system. You can
-download it from [CRAN](https://cran.r-project.org/). The package
-requires the following R packages: - `data.table` - `dplyr` - `igraph` -
-`Hmisc` - `boot` - `fdrtool` - `Rcpp` - `RcppParallel` - `parallel` -
-`ggplot2` - `ggraph` - `visNetwork` - `matrixStats` - `purrr` -
-`scales` - `tibble` - `tidyr` - `rlang` - `WGCNA` - `impute` -
-`devtools` (for installation from GitHub) Most of the `NECorr` package
-dependencies will be installed automatically. However, the above
-packages may require manual installation if not already present in your
-R environment. The following
-[BioConductor](https://www.bioconductor.org/) package will need to be
-installed separately - `Biobase` - `BiocGenerics` - `limma` -
-`AnnotationDbi` - `GenomeInfoDbData` - `supraHex`
+This package is supported for *Mac OS*, *Windows* and *Linux* operating systems. The package require a long running time depending of the size of molecular network. A computer with 16 GB RAM is recommended to run the package. The necessary C++ or GCC libraries are needed as the software is running partially on Rccp. \### Software Requirements Ensure you have R (version 4.3 or higher) installed on your system. You can download it from [CRAN](https://cran.r-project.org/). The package requires the following R packages: -
+
+-   `devtools` (for installation from GitHub) Most of the `NECorr` package dependencies will be installed automatically. However, the above packages may require manual installation if not already present in your R environment. The following [BioConductor](https://www.bioconductor.org/) package will need to be installed separately - `Biobase` - `BiocGenerics` - `limma` - `AnnotationDbi` - `GenomeInfoDbData` - `supraHex`
+
+-   `data.table` `dplyr` `igraph` `matrixStats` `purrr`
+
+-   `Hmisc` `boot` `fdrtool` `impute`
+
+-   `Rcpp` `RcppParallel` `parallel`
+
+-   `ggplot2` `ggraph` `visNetwork` `scales` `tibble` `tidyr` `rlang` \
 
 ## Installation Steps
 
-You can install the NECorr package directly from GitHub using the
-`devtools` package. If you haven't already, you'll need to install
-`devtools`:
+You can install the NECorr package directly from GitHub using the `devtools` package. If you haven't already, you'll need to install `devtools`:
 
 ``` r
 install.packages("devtools")
@@ -88,8 +66,7 @@ devtools::install_github("warelab/NECorr", build_vignettes=TRUE, dependencies=TR
 
 ## Usage
 
-Here is a basic example of how to use NECorr for network expression
-correlation analysis:
+Here is a basic example of how to use NECorr for network expression correlation analysis:
 
 ``` r
 library(NECorr)
@@ -116,18 +93,11 @@ head(results)
 
 ## Key Functions
 
-The NECorr package includes several key functions: `multiCorr()`:
-Calculate multiple correlation metrics in one pass. `NetTopology()`:
-Analyze network topology metrics. `DE.ranking()`: Rank differential
-expression in the context of network topology. `ts.IUT()`: Perform
-intersection-union tests for condition-specific analysis. `NECorr()`:
-Integrate correlation and topology for gene prioritization.
+The NECorr package includes several key functions: `multiCorr()`: Calculate multiple correlation metrics in one pass. `NetTopology()`: Analyze network topology metrics. `DE.ranking()`: Rank differential expression in the context of network topology. `ts.IUT()`: Perform intersection-union tests for condition-specific analysis. `NECorr()`: Integrate correlation and topology for gene prioritization.
 
 ## Help Files
 
-Comprehensive documentation is available within the package, including
-descriptions of all functions and their parameters. Use the following
-command to access help files for any function:
+Comprehensive documentation is available within the package, including descriptions of all functions and their parameters. Use the following command to access help files for any function:
 
 ``` r
 ?NECorr
@@ -139,12 +109,8 @@ command to access help files for any function:
 
 # License {#License}
 
-This project is licensed under the MIT License - see the
-[LICENSE](./LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 # Citation {#citation}
 
-For citing code or the paper, please use [this
-citation](https://www.biorxiv.org/content/early/2018/05/21/326868) for
-the version 1.0.0 of the package For the current version of the package
-a citation will be provided soon.
+For citing code or the paper, please use [this citation](https://www.biorxiv.org/content/early/2018/05/21/326868) for the version 1.0.0 of the package For the current version of the package a citation will be provided soon.

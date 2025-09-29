@@ -10,22 +10,51 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// gini
-DataFrame gini(DataFrame edges, NumericMatrix expression, int bootstrapIterations, double statCutoff);
-RcppExport SEXP _NECorr_gini(SEXP edgesSEXP, SEXP expressionSEXP, SEXP bootstrapIterationsSEXP, SEXP statCutoffSEXP) {
+// entropy_weight_cpp
+NumericVector entropy_weight_cpp(NumericMatrix mat);
+RcppExport SEXP _NECorr_entropy_weight_cpp(SEXP matSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
-    Rcpp::traits::input_parameter< DataFrame >::type edges(edgesSEXP);
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type mat(matSEXP);
+    rcpp_result_gen = Rcpp::wrap(entropy_weight_cpp(mat));
+    return rcpp_result_gen;
+END_RCPP
+}
+// multi_corr_necorr
+DataFrame multi_corr_necorr(NumericMatrix expression, IntegerMatrix ranks, IntegerVector src, IntegerVector tgt, int bootstrapIterations, bool useBestGCC, bool asymmetricGCC, CharacterVector rownames_in);
+RcppExport SEXP _NECorr_multi_corr_necorr(SEXP expressionSEXP, SEXP ranksSEXP, SEXP srcSEXP, SEXP tgtSEXP, SEXP bootstrapIterationsSEXP, SEXP useBestGCCSEXP, SEXP asymmetricGCCSEXP, SEXP rownames_inSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericMatrix >::type expression(expressionSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type ranks(ranksSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type src(srcSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type tgt(tgtSEXP);
     Rcpp::traits::input_parameter< int >::type bootstrapIterations(bootstrapIterationsSEXP);
-    Rcpp::traits::input_parameter< double >::type statCutoff(statCutoffSEXP);
-    rcpp_result_gen = Rcpp::wrap(gini(edges, expression, bootstrapIterations, statCutoff));
+    Rcpp::traits::input_parameter< bool >::type useBestGCC(useBestGCCSEXP);
+    Rcpp::traits::input_parameter< bool >::type asymmetricGCC(asymmetricGCCSEXP);
+    Rcpp::traits::input_parameter< CharacterVector >::type rownames_in(rownames_inSEXP);
+    rcpp_result_gen = Rcpp::wrap(multi_corr_necorr(expression, ranks, src, tgt, bootstrapIterations, useBestGCC, asymmetricGCC, rownames_in));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_TSI_TSE_parallel
+List compute_TSI_TSE_parallel(NumericMatrix expr);
+RcppExport SEXP _NECorr_compute_TSI_TSE_parallel(SEXP exprSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type expr(exprSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_TSI_TSE_parallel(expr));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_NECorr_gini", (DL_FUNC) &_NECorr_gini, 4},
+    {"_NECorr_entropy_weight_cpp", (DL_FUNC) &_NECorr_entropy_weight_cpp, 1},
+    {"_NECorr_multi_corr_necorr", (DL_FUNC) &_NECorr_multi_corr_necorr, 8},
+    {"_NECorr_compute_TSI_TSE_parallel", (DL_FUNC) &_NECorr_compute_TSI_TSE_parallel, 1},
     {NULL, NULL, 0}
 };
 

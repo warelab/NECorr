@@ -1,10 +1,78 @@
-source	type	target
-ga	PD	gb
-ga	PD	gc
-gb	PD	gc
-gd	PD	ga
-gh	PD	gi
-gh	PD	gc
-gb	PD	gh
-gi	PD	gc
-ge	PD	ga
+Gene17	Gene20
+Gene6	Gene9
+Gene11	Gene40
+Gene44	Gene6
+Gene47	Gene8
+Gene28	Gene50
+Gene32	Gene5
+Gene29	Gene49
+Gene35	Gene50
+Gene28	Gene6
+Gene10	Gene47
+Gene20	Gene26
+Gene1	Gene9
+Gene11	Gene5
+Gene11	Gene6
+Gene32	Gene47
+Gene12	Gene20
+Gene19	Gene2
+Gene27	Gene48
+Gene10	Gene32
+Gene27	Gene49
+Gene30	Gene7
+Gene38	Gene4
+Gene24	Gene44
+Gene28	Gene36
+Gene23	Gene3
+Gene34	Gene46
+Gene24	Gene40
+Gene4	Gene6
+Gene29	Gene36
+Gene23	Gene42
+Gene11	Gene48
+Gene30	Gene33
+Gene48	Gene50
+Gene10	Gene48
+Gene25	Gene3
+Gene33	Gene38
+Gene30	Gene36
+Gene34	Gene41
+Gene2	Gene25
+Gene4	Gene40
+Gene15	Gene20
+Gene14	Gene22
+Gene25	Gene49
+Gene24	Gene45
+Gene39	Gene7
+Gene40	Gene47
+Gene35	Gene37
+Gene31	Gene46
+Gene22	Gene47
+Gene15	Gene16
+Gene16	Gene22
+Gene19	Gene29
+Gene33	Gene8
+Gene31	Gene44
+Gene37	Gene50
+Gene31	Gene39
+Gene46	Gene48
+Gene16	Gene8
+Gene24	Gene9
+Gene11	Gene30
+Gene23	Gene43
+Gene30	Gene37
+Gene17	Gene34
+Gene26	Gene38
+Gene20	Gene43
+Gene23	Gene46
+Gene14	Gene26
+Gene36	Gene6
+Gene18	Gene45
+Gene2	Gene8
+Gene15	Gene8
+Gene11	Gene36
+Gene21	Gene45
+Gene3	Gene7
+Gene23	Gene39
+Gene10	Gene38
+Gene37	Gene45
