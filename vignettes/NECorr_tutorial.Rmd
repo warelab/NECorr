@@ -1,0 +1,163 @@
+---
+title: "NECorr: Network-Based Gene Ranking and Visualization"
+author: "Christophe Liseron-Monfils"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{NECorr: Network-Based Gene Ranking and Visualization}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 5
+)
+library(NECorr)
+```
+
+# Introduction
+
+`NECorr` is an R package for *integrated gene ranking* using: - Co-expression - Tissue specificity - Network topology - Edge significance
+
+It produces hub gene rankings, significant edges, regulators, and publication-ready plots — all in one command.
+
+# Example Workflow
+
+In this tutorial, we will:
+
+-   Load example data
+-   Run NECorr analysis
+-   Automatically generate plots and CSV outputs
+-   Explore the results
+
+## 1. Load Example Data
+
+We will use a small toy dataset included in the package for demonstration purposes.
+
+```{r, eval=FALSE}
+networkFile <- system.file("extdata", "example_network.tsv", package = "NECorr")
+expressionFile <- system.file("extdata", "example_expression.tsv", package = "NECorr")
+descriptionFile <- system.file("extdata", "example_desc.tsv", package = "NECorr")
+metadataFile <- system.file("extdata", "example_metadata.tsv", package = "NECorr")
+condition <- "Leaf"
+
+head(net)
+head(expr)
+head(desc)
+head(meta)
+
+```
+
+## 2. Run NECorr Analysis
+
+We will: - Run multi-method correlation (PCC, SCC, KCC) - Automatically visualize the results - Automatically save results and plots to a folder
+
+```{r, eval=FALSE}
+results <- NECorr(
+  networkFile = networkFile,
+  expression = expressionFile,
+  description.file = descriptionFile,
+  condition = condition,
+  metadata = metadataFile,
+  methods = c("PCC", "SCC", "KCC"),
+  visualize = TRUE,
+  save_results = TRUE,
+  output_dir = "NECorr_results",
+  top_n = 15,
+  interactive_net = FALSE
+)
+```
+
+## 3. Output Files
+
+When save_results = TRUE, all results are stored in:
+
+```         
+NECorr_results/
+├── necorrHub_nodes.csv         # Ranked hub genes
+├── necorrReg.csv               # Significant regulators
+├── necorrEdges.csv             # Significant edges
+├── coexpres.csv                # Edge-level co-expression
+├── hub.m.param.csv              # All metrics
+├── netstat.csv                 # Network statistics
+├── top_hubs_plot.pdf           # Barplot of top hub genes
+├── network_plot.pdf            # Static network plot
+├── coexpression_plot.pdf       # Scatter plot of co-expression
+└── degree_distribution.pdf     # Degree distribution histogram
+```
+
+## 4. Explore the Results
+
+```{r, eval=FALSE}
+# View top hub genes
+head(results$necorrHub_nodes, 10)
+
+# View top regulators
+results$necorrReg
+
+# View significant edges
+results$necorrEdges
+
+```
+
+## 5. Plots in R
+
+The `$plots` element contains publication-ready `ggplot2` and `ggraph` objects.
+
+```{r, eval=FALSE}
+results$plots$top_hubs_plot
+```
+
+```{r, eval=FALSE}
+results$plots$network_plot
+```
+
+```{r, eval=FALSE}
+if (!is.null(results$plots$coexpression_plot)) results$plots$coexpression_plot
+```
+
+```{r, eval=FALSE}
+results$plots$degree_distribution
+```
+
+## 6. Interactive Network (Optional)
+
+If you set `interactive_net = TRUE`, `$plots$network_plot` will be a *visNetwork* interactive graph:
+
+```{r, eval=FALSE}
+results <- NECorr(
+  networkFile, expressionFile, descriptionFile, condition, metadataFile,
+  visualize = TRUE, save_results = TRUE, output_dir = "NECorr_results",
+  interactive_net = TRUE
+)
+results$plots$network_plot
+
+```
+
+## 7. Customizing the Analysis
+
+Key parameters:
+
+-   methods → correlation methods (e.g., c("PCC", "SCC"))
+-   top_n → number of top hubs to plot
+-   interactive_net → static or interactive network
+-   run_ML_effector → run ML-based effector ranking
+-   run_edge_significance → run edge significance and activator detection
+
+# Conclusion
+
+With NECorr, you can:
+
+-   Rank genes by integrated network and expression metrics
+-   Identify key regulators and significant edges
+-   Get *ready-to-publish* plots and CSV results
+-   Explore interactively for large networks
+
+# References
+
+-   NECorr documentation: ?NECorr
+-   GitHub repository:<https://github.com/warelab/NECorr>

@@ -1,21 +1,51 @@
-	Tissues	Description
-f1	aerial	Aerial_part_3_week_old
-f2	aerial	Aerial_part_3_week_old
-f3	aerial	Aerial_part_3_week_old
-f4	aerial	Aerial_part_3_week_old
-f5	aerial	Aerial_part_4_week_old
-f6	aerial	Aerial_part_4_week_old
-f7	aerial	Aerial_part_long_day
-f8	carpel	Carpels_stage_8_13
-f9	carpel	Carpels_stage_8_13
-f10	dark	etiolated_seedling_3_day_old
-f11	dark	etiolated_seedling_3_day_old
-f12	dark	etiolated_seedling_5_day_old
-f13	dark	etiolated_seedling_5_day_old
-f14	dark	etiolated_seedling_5_day_old
-f15	dark	etiolated_seedling_5_day_old
-f16	dark	etiolated_seedling_7_day_old
-f17	flower	floral_bud_stage_12
-f18	flower	floral_bud_stage_12
-f19	leaf	meristem_young_leaves_4_week_old
-f20	leaf	meristem_young_leaves_4_week_old
+GeneID	Category	Description
+Gene1	Kinase	Description for Gene1
+Gene2	Other	Description for Gene2
+Gene3	Receptor	Description for Gene3
+Gene4	Receptor	Description for Gene4
+Gene5	Other	Description for Gene5
+Gene6	Receptor	Description for Gene6
+Gene7	TF	Description for Gene7
+Gene8	Kinase	Description for Gene8
+Gene9	TF	Description for Gene9
+Gene10	Kinase	Description for Gene10
+Gene11	Enzyme	Description for Gene11
+Gene12	Kinase	Description for Gene12
+Gene13	Enzyme	Description for Gene13
+Gene14	TF	Description for Gene14
+Gene15	Receptor	Description for Gene15
+Gene16	Kinase	Description for Gene16
+Gene17	Enzyme	Description for Gene17
+Gene18	Other	Description for Gene18
+Gene19	Other	Description for Gene19
+Gene20	Enzyme	Description for Gene20
+Gene21	Kinase	Description for Gene21
+Gene22	Other	Description for Gene22
+Gene23	Receptor	Description for Gene23
+Gene24	Kinase	Description for Gene24
+Gene25	TF	Description for Gene25
+Gene26	Receptor	Description for Gene26
+Gene27	TF	Description for Gene27
+Gene28	Receptor	Description for Gene28
+Gene29	Other	Description for Gene29
+Gene30	Receptor	Description for Gene30
+Gene31	Kinase	Description for Gene31
+Gene32	Kinase	Description for Gene32
+Gene33	Receptor	Description for Gene33
+Gene34	Enzyme	Description for Gene34
+Gene35	Other	Description for Gene35
+Gene36	Kinase	Description for Gene36
+Gene37	Enzyme	Description for Gene37
+Gene38	Enzyme	Description for Gene38
+Gene39	Enzyme	Description for Gene39
+Gene40	TF	Description for Gene40
+Gene41	TF	Description for Gene41
+Gene42	Enzyme	Description for Gene42
+Gene43	Receptor	Description for Gene43
+Gene44	Receptor	Description for Gene44
+Gene45	Other	Description for Gene45
+Gene46	Kinase	Description for Gene46
+Gene47	Kinase	Description for Gene47
+Gene48	Receptor	Description for Gene48
+Gene49	Kinase	Description for Gene49
+Gene50	TF	Description for Gene50
