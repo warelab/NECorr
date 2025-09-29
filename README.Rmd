@@ -1,5 +1,5 @@
 ---
-title: "Network Correlation Analysis (NECorr)"
+title: "Network Expression Correlation Ranking (NECorr)"
 output: github_document
 ---
 
@@ -7,90 +7,143 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+# NECorr: Network Expression Correlation Ranking
+
 # Contents
 
--   [Overview](#overview)
--   [Repo Contents](#repo-contents)
--   [System Requirements](#system-requirements)
--   [Installation Guide](#installation-guide)
--   [Instructions for Use](#instructions-for-use)
--   [License](./LICENSE)
--   [Citation](#citation)
+- [Overview](#Overview)
+- [Installation Guide](#Installation)
+- [Documenation](#Documentation)
+- [License](./LICENSE)
+- [Citation](#citation)
 
-# Overview {#overview}
 
-NECorr is a R package based on multiple-criteria decision-making algorithms. With the objective of ranking genes and their interactions in a selected condition or tissue, NECorr uses molecular network topology as well as global transcriptomics analysis to find condition/tissue-specific hub genes and their regulators.
+**NECorr** is an R package designed to integrate molecular network topology with expression correlation to prioritize candidate genes for specific conditions. This package provides a comprehensive suite of tools for analyzing gene expression data within the context of network structures, offering insights into potential regulatory mechanisms.
 
-# Repo Contents {#repo-contents}
+# Overview {#Overview}
 
--   [R](./R): `R` package code.
--   [man](./man): package manual for help in R session.
--   [int](./data): test data using dummies datasets and model.
--   [tests](./tests): `R` test with the data.
+## Description
 
-# System Requirements {#system-requirements}
+NECorr is a R package based on multiple-criteria decision-making
+algorithms using Entropy (EWM). With the objective of ranking genes and their interactions
+in a selected condition or tissue, NECorr uses molecular network
+topology as well as global transcriptomics analysis to find
+condition/tissue-specific hub genes and their regulators.
 
-## Hardware Requirements
+## Features
 
-The package require a long running time depending of the size of molecular network. A computer with 16 GB RAM is recommended to run the package.
-The necessary C++ or GCC libraries are needed as the software is running partially on Rccp.
+- Calculate multiple correlation coefficients (Gini, Pearson, Spearman, Kendall) efficiently.
+- Integrate network topology with expression data for comprehensive analysis.
+- Prioritize candidate genes based on network expression correlation.
+- Utilize bootstrapping methods for robust statistical inference.
 
-## Software Requirements
+# Installation Guide {#Installation}
 
-### OS Requirements
-
-This package is supported for *Mac OS*, *Windows* and *Linux* operating systems. The package has been tested on the following systems:
-
-Linux: Redhat RHEL 7.4\
-Mac OSX: OS X 11.2.3; and 12.6
-
-The NECorr packages requires the R version 3.4.2 or higher and a standard computer with enough RAM to support the operations defined by a user. For minimal performance, this will be a computer with about 1 GB of RAM.
-
-### Installing R version 3.5 on Linux
-
-The latest version of R can be installed as follows on *Linux*:
-
-```{bash eval=FALSE, include=TRUE}
-wget https://cran.rstudio.com/bin/macosx/R-3.4.2.pkg
-sudo installer -pkg R-3.5.2.pkg -target /
-
-```
-
-# Installation Guide {#installation-guide}
-
-## Devtools
-From an `R` session, type:
-
-```{r eval=FALSE, include=TRUE}
-require(devtools)
-install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)  
-```
-
-The package should take approximately 20 seconds to install with vignettes on a recommended computer.
-
-## Package Versions
-
-The `NECorr` package dependencies will be installed automatically. 
+## Prerequisites
+### Hardware Requirements
+This package is supported for *Mac OS*, *Windows* and *Linux* operating systems.
+The package require a long running time depending of the size of
+molecular network. A computer with 16 GB RAM is recommended to run the
+package. The necessary C++ or GCC libraries are needed as the software
+is running partially on Rccp.
+### Software Requirements
+Ensure you have R (version 4.3 or higher) installed on your system. You can download it from [CRAN](https://cran.r-project.org/).
+The package requires the following R packages:
+- `data.table`
+- `dplyr`
+- `igraph`
+- `Hmisc`
+- `boot`
+- `fdrtool`
+- `Rcpp`
+- `RcppParallel`
+-  `parallel`
+- `ggplot2`
+- `ggraph`
+- `visNetwork`
+- `matrixStats`
+- `purrr`
+- `scales`
+- `tibble`
+- `tidyr`
+- `rlang`
+- `WGCNA`
+- `impute`
+- `devtools` (for installation from GitHub)
+Most of the `NECorr` package dependencies will be installed automatically. However, the above packages may require manual installation 
+if not already present in your R environment.
 The following [BioConductor](https://www.bioconductor.org/) package will need to be installed separately
+- `Biobase`
+- `BiocGenerics`
+- `limma`
+- `AnnotationDbi`
+- `GenomeInfoDbData`
+- `supraHex`
 
-```{r eval=FALSE, include=TRUE}
-Biobase: 2.54.0
-BiocGenerics: 0.40.0
-limma: 3.50.3 
-AnnotationDbi: 1.56.2
-GenomeInfoDbData: 1.2.7 
-supraHex: 1.14.0
+## Installation Steps
+You can install the NECorr package directly from GitHub using the `devtools` package. If you haven't already, you'll need to install `devtools`:
+
+```r
+install.packages("devtools")
 ```
 
-# Instructions for Use {#instructions-for-use}
+Once devtools is installed, use the following command to install NECorr:
 
-Please see the vignettes for help using the package:
-
-```{r eval=FALSE, include=TRUE}
-vignette("Necorr", package="NECorr")
-vignette("gini", package="NECorr")
+```r
+devtools::install_github("warelab/NECorr", build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)
 ```
+
+## Usage
+
+Here is a basic example of how to use NECorr for network expression correlation analysis:
+```r
+library(NECorr)
+
+# Load your gene expression data and network edges
+expression_data <- read.csv("path/to/expression_data.csv")
+edges <- read.csv("path/to/network_edges.csv")
+
+# Calculate correlation metrics using multiCorr
+results <- multiCorr(
+  expression = expression_data,
+  edges = edges,
+  methods = c("GCC", "PCC", "SCC", "KCC"),
+  pernum = 1000,  # Number of bootstraps
+  useBestGCC = TRUE,
+  asymmetricGCC = FALSE
+)
+
+# View the results
+head(results)
+
+```
+# Documentation {#Documentation}
+
+## Key Functions
+The NECorr package includes several key functions:
+    `multiCorr()`: Calculate multiple correlation metrics in one pass.
+    `NetTopology()`: Analyze network topology metrics.
+    `DE.ranking()`: Rank differential expression in the context of network topology.
+    `ts.IUT()`: Perform intersection-union tests for condition-specific analysis.
+    `NECorr()`: Integrate correlation and topology for gene prioritization.
+
+## Help Files
+Comprehensive documentation is available within the package, including descriptions 
+of all functions and their parameters. Use the following command to access help files for any function:    
+
+```r
+?NECorr
+?multiCorr
+?NetTopology
+?DE.ranking
+?ts.IUT
+```
+# License {#License}
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 # Citation {#citation}
 
-For citing code or the paper, please use [this citation](https://www.biorxiv.org/content/early/2018/05/21/326868).
+For citing code or the paper, please use [this
+citation](https://www.biorxiv.org/content/early/2018/05/21/326868) for the version 1.0.0 of the package
+For the current version of the package a citation will be provided soon.
