@@ -1,0 +1,55 @@
+#' Entropy Weight Calculation (C++)
+#'
+#' Internal function called by NECorr for entropy-based weighting of matrices.
+#' @param mat A numeric matrix.
+#' @return A numeric vector of weights.
+#' @keywords internal
+#' @export
+entropy_weight_cpp <- function(mat) {
+  .Call(`_NECorr_entropy_weight_cpp`, mat)
+}
+
+#' Gini Index Calculation (C++)
+#'
+#' Internal function called by NECorr to compute Gini index on network edges.
+#' @param edges Data frame of edges.
+#' @param expression Numeric expression matrix.
+#' @param bootstrapIterations Integer, number of bootstrap iterations.
+#' @param statCutoff Numeric, statistical cutoff.
+#' @return A data frame with Gini index values.
+#' @keywords internal
+#' @export
+gini <- function(edges, expression, bootstrapIterations = 0, statCutoff = 0.0) {
+  .Call(`_NECorr_gini`, edges, expression, bootstrapIterations, statCutoff)
+}
+
+#' Multi-Correlation Calculation (C++)
+#'
+#' Internal function called by NECorr to compute multiple correlation metrics on network edges.
+#' @param expression Numeric expression matrix.
+#' @param ranks Numeric matrix of ranks.
+#' @param src Integer vector of source indices.
+#' @param tgt Integer vector of target indices.
+#' @param bootstrapIterations Integer, number of bootstrap iterations.
+#' @param usebestgcc Logical, whether to use the best correlation method.
+#' @param asymmetricgcc Logical, whether to use asymmetric GCC.
+#' @return A data frame with correlation values.
+#' @export
+#' @importFrom Rcpp evalCpp
+multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc) {
+  .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc)
+}
+
+#'compute_TSI_TSE_parallel (C++)
+#'
+#' Internal function called by NECorr to compute Tissue Specificity Index (TSI) and Tissue Specific Expression (TSE) in parallel.
+#' @param expression Numeric expression matrix.
+#' @return A list containing TSI and TSE values.
+#' @keywords internal
+#' @export
+#' @importFrom Rcpp evalCpp
+#' @importFrom parallel detectCores
+
+compute_TSI_TSE_parallel <- function(expression) {
+  .Call(`_NECorr_compute_TSI_TSE_parallel`, expression)
+}

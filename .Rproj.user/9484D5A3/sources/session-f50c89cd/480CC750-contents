@@ -1,0 +1,37 @@
+# run Sorghum examples
+library(NECorr)
+setwd("~/Documents/1_projects/NUE GRN Shorghum_Maize/Data-maize_2025/")
+# leaf
+resLeafSorghum <- NECorr(
+  networkFile     = "network.txt",
+  expression      = "shoot_expression.txt",
+  description.file= "description.csv",
+  condition       = "T30_shoot",
+  meta_data       = "shoot_metadata.txt",
+  method = c("SCC", "GCC"),
+  visualize = TRUE,
+  permutation     = 1000,
+  save_results = TRUE,
+  interactive_net = FALSE,
+  output_dir = "results_Leaf_2025_06_18",
+  useBestGCC = TRUE,
+  asymmetricGCC = FALSE
+)
+
+# Root
+resRootSorghum <- NECorr(
+  networkFile     = "network.txt",
+  expression      = "root_expression.txt",
+  description.file= "description.csv",
+  condition       = "T30_root",
+  meta_data       = "root_metadata.txt",
+  method = c("SCC", "GCC"),
+  visualize = TRUE,
+  permutation     = 1000,
+  save_results = TRUE,
+  interactive_net = FALSE,
+  output_dir = "results_Root_2025_06_18",
+  useBestGCC = FALSE,
+  asymmetricGCC = TRUE
+)
+

@@ -1,0 +1,256 @@
+[
+    {
+        "file": "/Users/liseronc/Documents/1_projects/NECorr/src/entropy_weight.cpp",
+        "file_last_write": 1756495907.0,
+        "definitions": [
+            {
+                "usr": "c:@F@entropy_weight_cpp#$@N@Rcpp@S@Matrix>#VI14#@N@Rcpp@ST>1#T@PreserveStorage#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "entropy_weight_cpp(NumericMatrix)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/entropy_weight.cpp",
+                "line": 6,
+                "column": 15,
+                "hidden": false
+            }
+        ],
+        "hidden": false
+    },
+    {
+        "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+        "file_last_write": 1757108646.0,
+        "definitions": [
+            {
+                "usr": "c:@S@ExpressionRank",
+                "kind": 3,
+                "parent_name": "",
+                "name": "ExpressionRank",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 16,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@ExpressionRank@F@operator()#l#l#",
+                "kind": 7,
+                "parent_name": "ExpressionRank",
+                "name": "operator(size_t, size_t)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 23,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@giniCov#&1$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#&1$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S0_#&1$@N@RcppParallel@S@RVector>#d#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "giniCov(const std::vector<double> &, const std::vector<int> &, const std::vector<double> &, const RcppParallel::RVector<double> &)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 41,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@giniCorrelation#&1$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#&1$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S0_#S3_#&1$@N@RcppParallel@S@RVector>#d#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "giniCorrelation(const std::vector<double> &, const std::vector<int> &, const std::vector<double> &, const std::vector<int> &, const RcppParallel::RVector<double> &)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 55,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@GiniWorker",
+                "kind": 3,
+                "parent_name": "",
+                "name": "GiniWorker",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 78,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@GiniWorker@F@operator()#l#l#",
+                "kind": 7,
+                "parent_name": "GiniWorker",
+                "name": "operator(size_t, size_t)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 107,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@gini#$@N@Rcpp@S@DataFrame_Impl>#@N@Rcpp@ST>1#T@PreserveStorage#$@N@Rcpp@S@Matrix>#VI14#@N@Rcpp@ST>1#T@PreserveStorage#I#d#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "gini(DataFrame, NumericMatrix, int, double)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/gini.cpp",
+                "line": 177,
+                "column": 11,
+                "hidden": false
+            }
+        ],
+        "hidden": false
+    },
+    {
+        "file": "/Users/liseronc/Documents/1_projects/NECorr/src/init.c",
+        "file_last_write": 1718727670.0,
+        "definitions": [],
+        "hidden": false
+    },
+    {
+        "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+        "file_last_write": 1757701516.0,
+        "definitions": [
+            {
+                "usr": "c:@F@pearsonCorrelation#&1$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#S0_#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "pearsonCorrelation(const vector<double> &, const vector<double> &)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 15,
+                "column": 15,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@spearmanCorrelation#&1$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S0_#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "spearmanCorrelation(const vector<int> &, const vector<int> &)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 32,
+                "column": 15,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@kendallCorrelation#&1$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#S0_#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "kendallCorrelation(const vector<double> &, const vector<double> &)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 49,
+                "column": 15,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@calcGCCNormalized#&1$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#&1$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S3_#S0_#I#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "calcGCCNormalized(const vector<double> &, const vector<int> &, const vector<int> &, const vector<double> &, int)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 67,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@bootstrapGiniPValue#d#&$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#&$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S0_#S3_#S0_#I#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "bootstrapGiniPValue(double, vector<double> &, vector<int> &, vector<double> &, vector<int> &, vector<double> &, int)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 111,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@permutationTests#d#&$@N@std@N@__1@S@vector>#d#$@N@std@N@__1@S@allocator>#d#&$@N@std@N@__1@S@vector>#I#$@N@std@N@__1@S@allocator>#I#S0_#S3_#S0_#I#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "permutationTests(double, vector<double> &, vector<int> &, vector<double> &, vector<int> &, vector<double> &, int)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 143,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@MultiCorrWorker",
+                "kind": 3,
+                "parent_name": "",
+                "name": "MultiCorrWorker",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 189,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@MultiCorrWorker@F@operator()#l#l#",
+                "kind": 7,
+                "parent_name": "MultiCorrWorker",
+                "name": "operator(size_t, size_t)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 229,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@multi_corr_necorr#$@N@Rcpp@S@Matrix>#VI14#@N@Rcpp@ST>1#T@PreserveStorage#$@N@Rcpp@S@Matrix>#VI13#@N@Rcpp@ST>1#T@PreserveStorage#$@N@Rcpp@S@Vector>#VI13#@N@Rcpp@ST>1#T@PreserveStorage#S2_#I#b#b#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "multi_corr_necorr(NumericMatrix, IntegerMatrix, IntegerVector, IntegerVector, int, bool, bool)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/multi_corr_necorr.cpp",
+                "line": 319,
+                "column": 11,
+                "hidden": false
+            }
+        ],
+        "hidden": false
+    },
+    {
+        "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+        "file_last_write": 1757362614.0,
+        "definitions": [
+            {
+                "usr": "c:@S@TSIWorker",
+                "kind": 3,
+                "parent_name": "",
+                "name": "TSIWorker",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+                "line": 11,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@TSIWorker@F@operator()#l#l#",
+                "kind": 7,
+                "parent_name": "TSIWorker",
+                "name": "operator(std::size_t, std::size_t)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+                "line": 18,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@TSEWorker",
+                "kind": 3,
+                "parent_name": "",
+                "name": "TSEWorker",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+                "line": 41,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@S@TSEWorker@F@operator()#l#l#",
+                "kind": 7,
+                "parent_name": "TSEWorker",
+                "name": "operator(std::size_t, std::size_t)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+                "line": 48,
+                "column": 8,
+                "hidden": false
+            },
+            {
+                "usr": "c:@F@compute_TSI_TSE_parallel#$@N@Rcpp@S@Matrix>#VI14#@N@Rcpp@ST>1#T@PreserveStorage#",
+                "kind": 6,
+                "parent_name": "",
+                "name": "compute_TSI_TSE_parallel(NumericMatrix)",
+                "file": "/Users/liseronc/Documents/1_projects/NECorr/src/tsi_tse_parallel.cpp",
+                "line": 73,
+                "column": 6,
+                "hidden": false
+            }
+        ],
+        "hidden": false
+    }
+]
