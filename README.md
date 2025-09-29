@@ -1,103 +1,55 @@
-Network Correlation Analysis (NECorr)
-================
+# Bn\_seed\_atlas\_par\_1
 
-# Contents
+## Overview
 
-- [Overview](#overview)
-- [Repo Contents](#repo-contents)
-- [System Requirements](#system-requirements)
-- [Installation Guide](#installation-guide)
-- [Instructions for Use](#instructions-for-use)
-- [License](./LICENSE)
-- [Citation](#citation)
+This project integrates miRNA, mRNA, and protein expression data to
+understand the regulatory networks and molecular mechanisms underlying
+seed development in Brassica. The analysis involves the following steps:
 
-# Overview
+1.  **Data Loading**: Load necessary datasets and libraries.
+2.  **miRNA Analysis**: Predict miRNA targets and identify interactions.
+3.  **mRNA Co-expression Analysis**: Normalize gene expression data and
+    calculate correlations to generate a co-expression network.
+4.  **Network-Based Analysis**: Project Arabidopsis molecular networks
+    onto Brassica, construct a comprehensive network, and filter using
+    co-expression data.
+5.  **Differential Expression Analysis**: Conduct DEG analysis for mRNA
+    and miRNA across different tissues.
+6.  **Functional Enrichment**: Analyze pathways and gene ontology for
+    enriched pathways.
+7.  **Multi-omics Integration**: Integrate and analyze multi-omics data
+    using MOFA and XGBoost.
+8.  **Visualization**: Visualize sub-networks and dimensional reduction.
 
-NECorr is a R package based on multiple-criteria decision-making
-algorithms. With the objective of ranking genes and their interactions
-in a selected condition or tissue, NECorr uses molecular network
-topology as well as global transcriptomics analysis to find
-condition/tissue-specific hub genes and their regulators.
+## Requirements
 
-# Repo Contents
+-   R (version 4.0 or higher)
+-   R packages: `ggplot2`, `ggraph`, `igraph`, `muxViz`, `readxl`,
+    `tidyverse`, `DESeq2`, `dplyr`, `tibble`, `BiocParallel`,
+    `org.At.tair.db`, `pathview`, `gage`, `limma`, `openxlsx`,
+    `stringr`, `plyr`
 
-- [R](./R): `R` package code.
-- [man](./man): package manual for help in R session.
-- [int](./data): test data using dummies datasets and model.
-- [tests](./tests): `R` test with the data.
+## Usage
 
-# System Requirements
+1.  **Set Up Environment**: Ensure all required R packages are
+    installed. Set the working directory and source any required
+    functions.
+2.  **Run Analysis**: Execute each function in the provided R script.
+    Functions are modularized for clarity and ease of use.
+3.  **Visualize Results**: Use provided visualization functions to
+    explore the data and results.
 
-## Hardware Requirements
+## Error Handling
 
-The package require a long running time depending of the size of
-molecular network. A computer with 16 GB RAM is recommended to run the
-package. The necessary C++ or GCC libraries are needed as the software
-is running partially on Rccp.
+The script includes basic error handling to notify users of issues
+during data loading and processing.
 
-## Software Requirements
+## Enhancements
 
-### OS Requirements
+-   Functions are encapsulated for modularity and reusability.
+-   Enhanced visualizations with clear and informative plots.
+-   Improved documentation for ease of understanding and collaboration.
 
-This package is supported for *Mac OS*, *Windows* and *Linux* operating
-systems. The package has been tested on the following systems:
+## License
 
-Linux: Redhat RHEL 7.4  
-Mac OSX: OS X 11.2.3; and 12.6
-
-The NECorr packages requires the R version 3.4.2 or higher and a
-standard computer with enough RAM to support the operations defined by a
-user. For minimal performance, this will be a computer with about 1 GB
-of RAM.
-
-### Installing R version 3.5 on Linux
-
-The latest version of R can be installed as follows on *Linux*:
-
-``` bash
-wget https://cran.rstudio.com/bin/macosx/R-3.4.2.pkg
-sudo installer -pkg R-3.5.2.pkg -target /
-```
-
-# Installation Guide
-
-## Devtools
-
-From an `R` session, type:
-
-``` r
-require(devtools)
-install_github('warelab/NECorr', build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)  
-```
-
-The package should take approximately 20 seconds to install with
-vignettes on a recommended computer.
-
-## Package Versions
-
-The `NECorr` package dependencies will be installed automatically. The
-following [BioConductor](https://www.bioconductor.org/) package will
-need to be installed separately
-
-``` r
-Biobase: 2.54.0
-BiocGenerics: 0.40.0
-limma: 3.50.3 
-AnnotationDbi: 1.56.2
-GenomeInfoDbData: 1.2.7 
-supraHex: 1.14.0
-```
-
-# Instructions for Use
-
-Please see the vignettes for help using the package:
-
-``` r
-vignette("Necorr", package="NECorr")
-vignette("gini", package="NECorr")
-```
-
-# Citation
-
-For citing code or the paper, please use [this
-citation](https://www.biorxiv.org/content/early/2018/05/21/326868).
+This project is licensed under the MIT License.
