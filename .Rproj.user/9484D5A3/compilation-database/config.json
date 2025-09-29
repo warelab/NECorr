@@ -1,0 +1,25 @@
+{
+    "args": [
+        "-std=gnu++17",
+        "-I/Library/Frameworks/R.framework/Resources/include",
+        "-DNDEBUG",
+        "-I/opt/homebrew/opt/openssl@3/",
+        "-fPIC",
+        "-falign-functions=64",
+        "-I/Users/liseronc/Library/R/arm64/4.3/library/Rcpp/include",
+        "-I/Users/liseronc/Library/R/arm64/4.3/library/RcppParallel/include",
+        "-DEIGEN_DONT_VECTORIZE",
+        "-I/Library/Developer/CommandLineTools/usr/lib/clang/16.0.0/include",
+        "-I/usr/local/include",
+        "-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1",
+        "-I/Library/Developer/CommandLineTools/usr/lib/clang/16/include",
+        "-I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include",
+        "-I/Library/Developer/CommandLineTools/usr/include"
+    ],
+    "pch": "Rcpp",
+    "is_cpp": true,
+    "hash": "1695245258175823304517568484881756848491",
+    "compiler": "1663158171492383918",
+    "rversion": "4.3.2",
+    "dbversion": 4
+}

@@ -1,0 +1,44 @@
+---
+title: "README"
+output: md_document
+---
+
+# Bn_seed_atlas_par_1
+
+## Overview
+
+This project integrates miRNA, mRNA, and protein expression data to understand the regulatory networks and molecular mechanisms underlying seed development in Brassica. The analysis involves the following steps:
+
+1.  **Data Loading**: Load necessary datasets and libraries.
+2.  **miRNA Analysis**: Predict miRNA targets and identify interactions.
+3.  **mRNA Co-expression Analysis**: Normalize gene expression data and calculate correlations to generate a co-expression network.
+4.  **Network-Based Analysis**: Project Arabidopsis molecular networks onto Brassica, construct a comprehensive network, and filter using co-expression data.
+5.  **Differential Expression Analysis**: Conduct DEG analysis for mRNA and miRNA across different tissues.
+6.  **Functional Enrichment**: Analyze pathways and gene ontology for enriched pathways.
+7.  **Multi-omics Integration**: Integrate and analyze multi-omics data using MOFA and XGBoost.
+8.  **Visualization**: Visualize sub-networks and dimensional reduction.
+
+## Requirements
+
+-   R (version 4.0 or higher)
+-   R packages: `ggplot2`, `ggraph`, `igraph`, `muxViz`, `readxl`, `tidyverse`, `DESeq2`, `dplyr`, `tibble`, `BiocParallel`, `org.At.tair.db`, `pathview`, `gage`, `limma`, `openxlsx`, `stringr`, `plyr`
+
+## Usage
+
+1.  **Set Up Environment**: Ensure all required R packages are installed. Set the working directory and source any required functions.
+2.  **Run Analysis**: Execute each function in the provided R script. Functions are modularized for clarity and ease of use.
+3.  **Visualize Results**: Use provided visualization functions to explore the data and results.
+
+## Error Handling
+
+The script includes basic error handling to notify users of issues during data loading and processing.
+
+## Enhancements
+
+-   Functions are encapsulated for modularity and reusability.
+-   Enhanced visualizations with clear and informative plots.
+-   Improved documentation for ease of understanding and collaboration.
+
+## License
+
+This project is licensed under the MIT License.

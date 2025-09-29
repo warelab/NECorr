@@ -1,0 +1,61 @@
+# Load necessary libraries
+library(Rcpp)
+library(data.table)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Define number of genes, samples, and edges
+num_genes <- 50
+num_samples <- 10
+num_edges <- 35
+
+# Generate synthetic expression data
+expression_data <- matrix(rnorm(num_genes * num_samples), nrow = num_genes)
+
+# Assign row and column names
+rownames(expression_data) <- paste0("Gene", 1:num_genes)
+colnames(expression_data) <- paste0("Sample", 1:num_samples)
+
+# Create network edges
+edges <- data.frame(
+  source = paste0("Gene", sample(1:num_genes, num_edges, replace = TRUE)),
+  target = paste0("Gene", sample(1:num_genes, num_edges, replace = TRUE))
+)
+
+# Ensure no self-loops
+edges <- edges[edges$source != edges$target, ]
+
+# Adjust expression data for high, small, no, and inverse correlation
+# High correlation: Modify a few gene pairs to be similar
+expression_data[1, ] <- expression_data[2, ] + rnorm(num_samples, sd = 0.1)  # High correlation
+# Small correlation: Slightly correlated
+expression_data[3, ] <- expression_data[4, ] * 0.1 + rnorm(num_samples, sd = 1)  # Small correlation
+# Inverse correlation: Negatively correlated
+expression_data[5, ] <- -expression_data[6, ] + rnorm(num_samples, sd = 0.1)  # Inverse correlation
+# No correlation: Leave as is (random data)
+
+# Rank the expression data
+ranks <- matrix(
+  apply(expression_data, 1, function(row) rank(row, ties.method = "first") - 1),
+  nrow = nrow(expression_data), byrow = TRUE
+)
+
+# Map gene names to indices for C++
+gene_index <- setNames(seq_len(num_genes) - 1, rownames(expression_data))
+src_indices <- as.integer(gene_index[edges$source])
+tgt_indices <- as.integer(gene_index[edges$target])
+
+# Call multi_corr_necorr function
+results <- multi_corr_necorr(
+  expression = expression_data,
+  ranks = ranks,
+  src = src_indices,
+  tgt = tgt_indices,
+  bootstrapIterations = 1000, # Number of bootstraps
+  usebestgcc = TRUE,
+  asymmetricgcc = FALSE
+)
+
+# Print the results
+print(results)

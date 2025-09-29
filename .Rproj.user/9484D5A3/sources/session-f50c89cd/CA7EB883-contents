@@ -1,0 +1,57 @@
+useDynLib(NECorr, .registration=TRUE)
+importFrom(Rcpp, evalCpp,sourceCpp)
+export(NECorr)
+export(multiCorr)
+export(NetTopology)
+export(DE.ranking)
+export(ScalN)
+export(scaling_param)
+export(fishersMethod)
+export(indexing.network)
+export(ts.IUT)
+export(IUTtsi)
+export(IUTtse)
+export(IUTest)
+export(hub_edge_significance)
+export(activator_significant)
+export(linked_act_hub_net)
+export(linked_eff_hub_net)
+export(DiscNULLrow)
+export(factOrg)
+export(TSI)
+export(TSE)
+export(mergeMetricsByGene)
+
+import(tibble)
+import(purrr)
+exportPattern("^[[:alpha:]]+")
+importFrom("RcppParallel","RcppParallelLibs","setThreadOptions")
+importFrom("scales", "rescale")
+importFrom("grDevices", "colorRampPalette", "dev.off", "pdf")
+importFrom("utils", "read.csv", "read.delim", "read.table",
+           "write.csv", "write.table", "head", "tail","methods", "flush.console")
+importFrom("Biobase", "ExpressionSet")
+importFrom("limma", "eBayes", "topTable", "contrasts.fit", "makeContrasts",
+           "lmFit")
+importFrom("tidyr", "pivot_longer", "all_of")
+importFrom("matrixStats", "rowMeans2", "rowSums2")
+importFrom("data.table", "setDT", ".SD", "fread", "fwrite", "setnames", "setkey",
+           "rbindlist", "frankv", "is.data.table", "as.data.table", ":=", "data.table",
+           "fifelse", "setcolorder")
+importFrom("dplyr", "summarise", "group_by", "combine", "left_join",
+           "mutate", "select", "syms", "arrange", "ungroup", "starts_with",
+           "across", "rowwise", "c_across")
+importFrom("rlang", ".data")
+importFrom("parallel", "mcmapply", "makeCluster", "clusterExport", "clusterEvalQ",
+           "parLapply", "stopCluster", "detectCores")
+importFrom("igraph", "V<-", "degree", "graph.data.frame", "betweenness", "evcent",
+           "V", "page.rank", "eigen_centrality", "page_rank" , "transitivity",
+           "layout.fruchterman.reingold", "graph_from_data_frame")
+importFrom("grDevices", "colorRampPalette", "dev.off", "pdf")
+importFrom("stats", "complete.cases","model.matrix", "pchisq", "cor.test","p.adjust",
+           "predict", "qt", "var", "pt", "filter", "pnorm", "setNames", "reorder")
+importFrom("ggplot2", "ggplot", "ggsave")
+importFrom("ggraph", "ggraph")
+importFrom("visNetwork", "visNetwork")
+import("impute")
+import("WGCNA")
