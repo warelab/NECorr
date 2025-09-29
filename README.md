@@ -1,55 +1,130 @@
-# Bn\_seed\_atlas\_par\_1
+# NECorr: Network Expression Correlation Ranking
 
-## Overview
+# Contents
 
-This project integrates miRNA, mRNA, and protein expression data to
-understand the regulatory networks and molecular mechanisms underlying
-seed development in Brassica. The analysis involves the following steps:
+-   [Overview](#Overview)
+-   [Installation Guide](#Installation)
+-   [Documenation](#Documentation)
+-   [License](./LICENSE)
+-   [Citation](#citation)
 
-1.  **Data Loading**: Load necessary datasets and libraries.
-2.  **miRNA Analysis**: Predict miRNA targets and identify interactions.
-3.  **mRNA Co-expression Analysis**: Normalize gene expression data and
-    calculate correlations to generate a co-expression network.
-4.  **Network-Based Analysis**: Project Arabidopsis molecular networks
-    onto Brassica, construct a comprehensive network, and filter using
-    co-expression data.
-5.  **Differential Expression Analysis**: Conduct DEG analysis for mRNA
-    and miRNA across different tissues.
-6.  **Functional Enrichment**: Analyze pathways and gene ontology for
-    enriched pathways.
-7.  **Multi-omics Integration**: Integrate and analyze multi-omics data
-    using MOFA and XGBoost.
-8.  **Visualization**: Visualize sub-networks and dimensional reduction.
+**NECorr** is an R package designed to integrate molecular network
+topology with expression correlation to prioritize candidate genes for
+specific conditions. This package provides a comprehensive suite of
+tools for analyzing gene expression data within the context of network
+structures, offering insights into potential regulatory mechanisms.
 
-## Requirements
+# Overview
 
--   R (version 4.0 or higher)
--   R packages: `ggplot2`, `ggraph`, `igraph`, `muxViz`, `readxl`,
-    `tidyverse`, `DESeq2`, `dplyr`, `tibble`, `BiocParallel`,
-    `org.At.tair.db`, `pathview`, `gage`, `limma`, `openxlsx`,
-    `stringr`, `plyr`
+## Description
+
+NECorr is a R package based on multiple-criteria decision-making
+algorithms using Entropy (EWM). With the objective of ranking genes and
+their interactions in a selected condition or tissue, NECorr uses
+molecular network topology as well as global transcriptomics analysis to
+find condition/tissue-specific hub genes and their regulators.
+
+## Features
+
+-   Calculate multiple correlation coefficients (Gini, Pearson,
+    Spearman, Kendall) efficiently.
+-   Integrate network topology with expression data for comprehensive
+    analysis.
+-   Prioritize candidate genes based on network expression correlation.
+-   Utilize bootstrapping methods for robust statistical inference.
+
+# Installation Guide
+
+## Prerequisites
+
+### Hardware Requirements
+
+This package is supported for *Mac OS*, *Windows* and *Linux* operating
+systems. The package require a long running time depending of the size
+of molecular network. A computer with 16 GB RAM is recommended to run
+the package. The necessary C++ or GCC libraries are needed as the
+software is running partially on Rccp. \### Software Requirements Ensure
+you have R (version 4.3 or higher) installed on your system. You can
+download it from [CRAN](https://cran.r-project.org/). The package
+requires the following R packages: - `data.table` - `dplyr` - `igraph` -
+`Hmisc` - `boot` - `fdrtool` - `Rcpp` - `RcppParallel` - `parallel` -
+`ggplot2` - `ggraph` - `visNetwork` - `matrixStats` - `purrr` -
+`scales` - `tibble` - `tidyr` - `rlang` - `WGCNA` - `impute` -
+`devtools` (for installation from GitHub) Most of the `NECorr` package
+dependencies will be installed automatically. However, the above
+packages may require manual installation if not already present in your
+R environment. The following
+[BioConductor](https://www.bioconductor.org/) package will need to be
+installed separately - `Biobase` - `BiocGenerics` - `limma` -
+`AnnotationDbi` - `GenomeInfoDbData` - `supraHex`
+
+## Installation Steps
+
+You can install the NECorr package directly from GitHub using the
+`devtools` package. If you haven’t already, you’ll need to install
+`devtools`:
+
+    install.packages("devtools")
+
+Once devtools is installed, use the following command to install NECorr:
+
+    devtools::install_github("warelab/NECorr", build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)
 
 ## Usage
 
-1.  **Set Up Environment**: Ensure all required R packages are
-    installed. Set the working directory and source any required
-    functions.
-2.  **Run Analysis**: Execute each function in the provided R script.
-    Functions are modularized for clarity and ease of use.
-3.  **Visualize Results**: Use provided visualization functions to
-    explore the data and results.
+Here is a basic example of how to use NECorr for network expression
+correlation analysis:
 
-## Error Handling
+    library(NECorr)
 
-The script includes basic error handling to notify users of issues
-during data loading and processing.
+    # Load your gene expression data and network edges
+    expression_data <- read.csv("path/to/expression_data.csv")
+    edges <- read.csv("path/to/network_edges.csv")
 
-## Enhancements
+    # Calculate correlation metrics using multiCorr
+    results <- multiCorr(
+      expression = expression_data,
+      edges = edges,
+      methods = c("GCC", "PCC", "SCC", "KCC"),
+      pernum = 1000,  # Number of bootstraps
+      useBestGCC = TRUE,
+      asymmetricGCC = FALSE
+    )
 
--   Functions are encapsulated for modularity and reusability.
--   Enhanced visualizations with clear and informative plots.
--   Improved documentation for ease of understanding and collaboration.
+    # View the results
+    head(results)
 
-## License
+# Documentation
 
-This project is licensed under the MIT License.
+## Key Functions
+
+The NECorr package includes several key functions: `multiCorr()`:
+Calculate multiple correlation metrics in one pass. `NetTopology()`:
+Analyze network topology metrics. `DE.ranking()`: Rank differential
+expression in the context of network topology. `ts.IUT()`: Perform
+intersection-union tests for condition-specific analysis. `NECorr()`:
+Integrate correlation and topology for gene prioritization.
+
+## Help Files
+
+Comprehensive documentation is available within the package, including
+descriptions of all functions and their parameters. Use the following
+command to access help files for any function:
+
+    ?NECorr
+    ?multiCorr
+    ?NetTopology
+    ?DE.ranking
+    ?ts.IUT
+
+# License
+
+This project is licensed under the MIT License - see the
+[LICENSE](./LICENSE) file for details.
+
+# Citation
+
+For citing code or the paper, please use [this
+citation](https://www.biorxiv.org/content/early/2018/05/21/326868) for
+the version 1.0.0 of the package For the current version of the package
+a citation will be provided soon.
