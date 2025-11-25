@@ -11,7 +11,7 @@ NECorr(
   condition,
   meta_data,
   permutation = 1000,
-  method = c("GCC"),
+  method = "GCC",
   visualize = TRUE,
   output_dir = NULL,
   interactive_net = FALSE,

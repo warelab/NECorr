@@ -9,7 +9,8 @@ visualize_necorr_results(
   top_n = 20,
   interactive_net = FALSE,
   highlight_regulators = TRUE,
-  output_dir = NULL
+  output_dir = NULL,
+  max_network_edges = 100
 )
 }
 \arguments{
@@ -23,6 +24,8 @@ network plot (visNetwork).}
 \item{highlight_regulators}{Logical, whether to highlight regulators in network plot.}
 
 \item{output_dir}{Optional, directory to save plots as PDF/PNG.}
+
+\item{max_network_edges}{maximum edge that is shown in the graph}
 }
 \value{
 A list of ggplot/ggraph/visNetwork objects.

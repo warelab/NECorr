@@ -25,7 +25,7 @@ multiCorr <- function(expression, edges,
     src_idx >= 1 & src_idx <= nrow(expression) &
     tgt_idx >= 1 & tgt_idx <= nrow(expression)
 
-  if (!any(valid_edges)) stop("No valid edges after filtering!")
+  if (!any(valid_edges)) stop("No valid edges after filtering!, maybe your network genes don't match your genes in expression")
 
   ranks <- matrix(
     apply(expression, 1, function(row) rank(row, ties.method = "first") - 1),

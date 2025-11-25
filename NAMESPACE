@@ -34,6 +34,7 @@ importFrom("utils", "read.csv", "read.delim", "read.table",
 importFrom("Biobase", "ExpressionSet")
 importFrom("limma", "eBayes", "topTable", "contrasts.fit", "makeContrasts",
            "lmFit")
+importFrom("htmlwidgets", "saveWidget")
 importFrom("tidyr", "pivot_longer", "all_of")
 importFrom("patchwork", "plot_layout")
 importFrom("matrixStats", "rowMeans2", "rowSums2")

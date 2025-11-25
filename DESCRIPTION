@@ -32,11 +32,13 @@ Imports:
     parallel,
     rlang,
     WGCNA,
-    impute
+    impute,
+    impute,
+    htmlwidgets
 Remotes:
     bioc::impute
 LinkingTo: Rcpp, RcppParallel
 Roxygen: list(markdown = TRUE)
-Suggests: knitr, rmarkdown
+Suggests: knitr, rmarkdown, BiocManager
 VignetteBuilder: knitr
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3

@@ -35,7 +35,7 @@
 #' @export
 NECorr <- function(networkFile, expression, description.file,
                    condition, meta_data, permutation = 1000,
-                   method=c("GCC"), visualize = TRUE,
+                   method="GCC", visualize = TRUE,
                    output_dir = NULL, interactive_net = FALSE,
                    top_n = 20, save_results = TRUE,
                    useBestGCC = FALSE, asymmetricGCC = FALSE, ...) {
@@ -97,11 +97,18 @@ NECorr <- function(networkFile, expression, description.file,
   #### 1. Load network ####
   # --- Load network ---
   if (is.character(networkFile) && file.exists(networkFile)) {
-    network.int <- fread(networkFile, header = FALSE, sep = "\t",
+    network.int <- fread(networkFile, header = FALSE,
                          encoding = "Latin-1",
                          colClasses = c("character", "character"),
                          nThread = n_threads, showProgress = FALSE)
-    setnames(network.int, c("source", "target"))
+    if (ncol(network.int) == 2) {
+      setnames(network.int, c("source", "target"))
+    } else if (ncol(network.int) >= 3) {
+      # Take only columns 1 and 3
+      network.int <- network.int[, .(source = V1, target = V3)]
+    } else {
+      stop("networkFile must have at least 2 columns.")
+    }
   } else if (is.data.frame(networkFile) || is.data.table(networkFile)) {
     network.int <- safe_as_data_table(networkFile)
     # Ensure correct colnames
@@ -113,22 +120,22 @@ NECorr <- function(networkFile, expression, description.file,
   }
   # Remove NA edges
   network.int <- network.int[complete.cases(source, target)]
-  update_progress(1)
+  update_progress(1) # Loading network
   #print(paste("Network loaded with", nrow(network.int), "edges."))
   #### 2. Load expression ####
   if (is.character(expression) && file.exists(expression)) {
-    eset <- fread(expression, header = TRUE, sep = "\t",
+    eset <- fread(expression, header = TRUE,
                   nThread = n_threads, showProgress = FALSE)
     gene_ids <- eset[[1]]
     eset[, 1 := NULL]
     eset[, gene_id := gene_ids]
     setkey(eset, gene_id)
   } else { eset <- safe_as_data_table(expression) }
-  update_progress(2)
+  update_progress(2) # Loading expression
   #print(paste("Expression data loaded with", nrow(eset), "genes and", ncol(eset)-1, "samples."))
   #### 3. Load description ####
   if (is.character(description.file) && file.exists(description.file)) {
-    description_df <- fread(description.file, header = TRUE, sep = ",",
+    description_df <- fread(description.file, header = TRUE,
                             nThread = n_threads, showProgress = FALSE)
     colnames(description_df)[1] <- "gene_id"
   } else {
@@ -138,11 +145,11 @@ NECorr <- function(networkFile, expression, description.file,
     }
   }
   setkey(description_df, gene_id)
-  update_progress(3)
+  update_progress(3) # Loading description
   #print(paste("Description data loaded with", nrow(description_df), "entries."))
   #### 4. Load metadata ####
   if (is.character(meta_data) && file.exists(meta_data)) {
-    factortab <- fread(meta_data, header = TRUE, sep = "\t",
+    factortab <- fread(meta_data, header = TRUE,
                        nThread = n_threads, showProgress = FALSE)
     # First column is sample IDs
     sample_ids <- factortab[[1]]
@@ -169,7 +176,7 @@ NECorr <- function(networkFile, expression, description.file,
     if (!setequal(rownames(factortab), expr_sample_cols)) {
       stop("Mismatch between metadata sample IDs and expression data column names.")
   }
-  update_progress(4)
+  update_progress(4) # Loading metadata
   #print(paste("Metadata loaded with", nrow(factortab), "samples."))
   #### 5. Check sample existence ####
   if (!all(factortab$sample_id %in% colnames(eset)[-which(names(eset) == "gene_id")])) {
@@ -204,18 +211,23 @@ NECorr <- function(networkFile, expression, description.file,
   rownames(m.eset) <- eset$gene_id
   # Tissues vector matches m.eset columns
   tissues <- factortab$condition[idx_list]
-  update_progress(5)
+  update_progress(5) # Filtering expression
   #print(paste("Expression data filtered to", nrow(m.eset), "genes and", ncol(m.eset), "samples."))
   #### 9. Correlation (multiCorr) ####
   int.sig.full <- multiCorr(expression = m.eset, edges = network.int,
                             pernum = permutation, methods = method, useBestGCC = useBestGCC, asymmetricGCC = asymmetricGCC)
-  update_progress(6)
+  update_progress(6) #Calculating correlation
   # print(paste("Correlation calculated for", nrow(int.sig.full), "edges using methods:", paste(methods, collapse = ", ")))
   #### 10. Tissue specificity ####
   ts.res <- ts.IUT(name = paste(condition, permutation, sep = "_"),
                    eset = m.eset, tissues = tissues,
                    target = condition, threshold = 0.05, filter = 3, minGenes = 5)
   tsi.order <- if (!is.null(ts.res)) {
+    #message("Head of tissue specificity index (TSI)")
+    #print(head(ts.res$filtTSI))
+    #message("Head of tissue specificity index (TSE)")
+    #print(head(ts.res$filtTSE))
+    colnames(ts.res$filtTSE) <- c("gene", "TSI")
     ts <- rbind(ts.res$filtTSI, ts.res$filtTSE)
     ts <- ts[!duplicated(ts$gene), ]
     ScalN(setNames(ts$TSI, ts$gene))
@@ -322,7 +334,7 @@ NECorr <- function(networkFile, expression, description.file,
 
   actres <- if (nrow(hub.int.significant) > 0)
     activator_significant(hub.int.significant, as.data.frame(network.int), as.data.frame(description_df)) else NULL
-  update_progress(14)
+  update_progress(14) # Edge significance
   # print(paste("Edge significance calculated with", nrow(hub.int.significant), "significant edges."))
   #### 18. Compile results ####
   results <- list(
@@ -340,7 +352,7 @@ NECorr <- function(networkFile, expression, description.file,
                                               highlight_regulators = TRUE,
                                               output_dir = output_dir)
   }
-  update_progress(15)
+  update_progress(15) # Visualization
   # print("Visualization completed.")
   #### 20. Save results ####
   if (save_results) {
@@ -353,7 +365,7 @@ NECorr <- function(networkFile, expression, description.file,
     fwrite(results$hub.m.param, file.path(output_dir, "hub.m.param.csv"))
     fwrite(results$netstat, file.path(output_dir, "netstat.csv"))
   }
-  update_progress(16)
+  update_progress(16) # Saving results
   # print("Results saved.")
   return(results)
 
