@@ -347,11 +347,27 @@ NECorr <- function(networkFile, expression, description.file,
   )
   #### 19. Visualization ####
   if (visualize) {
-    results$plots <- visualize_necorr_results(results, top_n = top_n,
-                                              interactive_net = interactive_net,
-                                              highlight_regulators = TRUE,
-                                              output_dir = output_dir)
+
+    # Check for empty network results
+    edges_empty <- is.null(results$necorrEdges) || nrow(results$necorrEdges) == 0
+    hubs_empty  <- is.null(results$necorrHub_nodes) || nrow(results$necorrHub_nodes) == 0
+    if (edges_empty || hubs_empty) {
+      message("Visualization skipped: No network data available.\n",
+              "- necorrEdges empty: ", edges_empty, "\n",
+              "- necorrHub_nodes empty: ", hubs_empty)
+      results$plots <- NULL   # or NA, depending on how you use it
+    } else {
+      # Safe call only when data exists
+      results$plots <- visualize_necorr_results(
+        results,
+        top_n = top_n,
+        interactive_net = interactive_net,
+        highlight_regulators = TRUE,
+        output_dir = output_dir
+      )
+    }
   }
+
   update_progress(15) # Visualization
   # print("Visualization completed.")
   #### 20. Save results ####
