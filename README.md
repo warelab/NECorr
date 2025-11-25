@@ -74,6 +74,23 @@ You can install the NECorr package directly from GitHub using the
 
 Once devtools is installed, use the following command to install NECorr:
 
+    # Install the proper gfortran toolchain for R
+    install.packages("remotes")remotes::install_github("coatless-mac/macrtools")
+
+    # Optional, but nice if you want everything set up
+    macrtools::gfortran_install()
+    macrtools::macos_rtools_install()
+
+    # Optional: pre-install dependencies
+    install.packages(c("igraph", "Matrix", "gtools", "gplots", "Rcpp"))
+
+    # install Bioconductor dependencies not reachable by the normal installation
+    if (!requireNamespace("BiocManager", quietly = TRUE)) { install.packages("BiocManager")}
+      BiocManager::install(c("impute", "preprocessCore"), ask = FALSE, update = TRUE)
+
+    if (!requireNamespace("devtools", quietly = TRUE)) { install.packages("devtools")}
+
+    # install NECorr package
     devtools::install_github("warelab/NECorr", build_vignettes=TRUE, dependencies=TRUE, upgrade_dependencies=TRUE)
 
 ## Usage
@@ -99,6 +116,21 @@ correlation analysis:
 
     # View the results
     head(results)
+
+    # run NECorr
+    results <- NECorr(
+      networkFile = networkFile,
+      expression = expressionFile,
+      description.file = descriptionFile,
+      condition = condition,
+      metadata = metadataFile,
+      method = c("GCC","PCC", "SCC", "KCC"),
+      visualize = TRUE,
+      save_results = TRUE,
+      output_dir = "NECorr_results",
+      top_n = 15,
+      interactive_net = FALSE
+    )
 
 # Documentation
 
