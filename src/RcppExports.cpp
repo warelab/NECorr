@@ -22,8 +22,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // multi_corr_necorr
-DataFrame multi_corr_necorr(NumericMatrix expression, IntegerMatrix ranks, IntegerVector src, IntegerVector tgt, int bootstrapIterations, bool useBestGCC, bool asymmetricGCC, CharacterVector rownames_in);
-RcppExport SEXP _NECorr_multi_corr_necorr(SEXP expressionSEXP, SEXP ranksSEXP, SEXP srcSEXP, SEXP tgtSEXP, SEXP bootstrapIterationsSEXP, SEXP useBestGCCSEXP, SEXP asymmetricGCCSEXP, SEXP rownames_inSEXP) {
+DataFrame multi_corr_necorr(NumericMatrix expression, IntegerMatrix ranks, IntegerVector src, IntegerVector tgt, int bootstrapIterations, bool useBestGCC, bool asymmetricGCC, CharacterVector rownames_in, double seed);
+RcppExport SEXP _NECorr_multi_corr_necorr(SEXP expressionSEXP, SEXP ranksSEXP, SEXP srcSEXP, SEXP tgtSEXP, SEXP bootstrapIterationsSEXP, SEXP useBestGCCSEXP, SEXP asymmetricGCCSEXP, SEXP rownames_inSEXP, SEXP seedSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -35,7 +35,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type useBestGCC(useBestGCCSEXP);
     Rcpp::traits::input_parameter< bool >::type asymmetricGCC(asymmetricGCCSEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type rownames_in(rownames_inSEXP);
-    rcpp_result_gen = Rcpp::wrap(multi_corr_necorr(expression, ranks, src, tgt, bootstrapIterations, useBestGCC, asymmetricGCC, rownames_in));
+    Rcpp::traits::input_parameter< double >::type seed(seedSEXP);
+    rcpp_result_gen = Rcpp::wrap(multi_corr_necorr(expression, ranks, src, tgt, bootstrapIterations, useBestGCC, asymmetricGCC, rownames_in, seed));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -53,7 +54,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_NECorr_entropy_weight_cpp", (DL_FUNC) &_NECorr_entropy_weight_cpp, 1},
-    {"_NECorr_multi_corr_necorr", (DL_FUNC) &_NECorr_multi_corr_necorr, 8},
+    {"_NECorr_multi_corr_necorr", (DL_FUNC) &_NECorr_multi_corr_necorr, 9},
     {"_NECorr_compute_TSI_TSE_parallel", (DL_FUNC) &_NECorr_compute_TSI_TSE_parallel, 1},
     {NULL, NULL, 0}
 };

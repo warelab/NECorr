@@ -5,8 +5,8 @@ entropy_weight_cpp <- function(mat) {
     .Call(`_NECorr_entropy_weight_cpp`, mat)
 }
 
-multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations = 0L, useBestGCC = FALSE, asymmetricGCC = FALSE, rownames_in = character()) {
-    .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, useBestGCC, asymmetricGCC, rownames_in)
+multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations = 0L, useBestGCC = FALSE, asymmetricGCC = FALSE, rownames_in = character(), seed = 12345) {
+    .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, useBestGCC, asymmetricGCC, rownames_in, seed)
 }
 
 compute_TSI_TSE_parallel <- function(expr) {

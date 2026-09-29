@@ -20,11 +20,12 @@ entropy_weight_cpp <- function(mat) {
 #' @param usebestgcc Logical, whether to use the best correlation method.
 #' @param asymmetricgcc Logical, whether to use asymmetric GCC.
 #' @param rownames_in Logical, whether row names are provided.
+#' @param seed Numeric seed for the permutation test.
 #' @return A data frame with correlation values.
 #' @export
 #' @importFrom Rcpp evalCpp
-multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in) {
-  .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in)
+multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in, seed = 12345) {
+  .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in, seed)
 }
 
 #'compute_TSI_TSE_parallel (C++)

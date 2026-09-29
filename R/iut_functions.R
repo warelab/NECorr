@@ -9,8 +9,11 @@
 #' @export
 #' @importFrom parallel detectCores
 #'
-fast_tsi_tse <- function(expr, tissues) {
+fast_tsi_tse <- function(expr, tissues, log_scale = TRUE) {
   expr <- as.matrix(expr)
+  # tau is defined on non-negative, linear-scale expression; log2 values give
+  # out-of-range or undefined indices and are not shift-invariant
+  if (log_scale) expr <- 2^expr
 
   # Auto-detect and fix orientation if necessary
   if (length(tissues) == nrow(expr) && length(tissues) != ncol(expr)) {
@@ -276,7 +279,7 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha,
     # thresh <- 1 - (1 - alpha)^(1 / gene)
     #crit.value <- qt(1 - thresh, nrarrays - adj_sFactors[sIndex])
     # Degrees of freedom
-    df <- nrarrays - adj_sFactors[sIndex]
+    df <- nrarrays - nbTreat  # residual df of the pooled variance
     # Calculate p-values for all comparisons
     pvals <- 2 * pt(-abs(tstattab), df = df)
     # Adjust using BH FDR
@@ -331,30 +334,27 @@ ts.IUT <- function(name,
                    minGenes = 1,
                    maxIter = 5,
                    loosenFactor = 2,
-                   filterDecrease = 0.5) {
+                   filterDecrease = 0.5,
+                   log_scale = TRUE) {
   eset <- as.matrix(eset)
   if (length(tissues) != ncol(eset)) {
     stop("'tissues' length must match ncol(eset)")
   }
 
   sample.names <- unique(tissues)
-  sFactors <- table(tissues)
+  # group columns contiguously in sample.names order; counts in the SAME order
+  ord <- order(match(tissues, sample.names))
+  eset <- eset[, ord, drop = FALSE]; tissues <- tissues[ord]
+  sFactors <- as.integer(table(factor(tissues, levels = sample.names)))
   sIndex <- match(target, sample.names)
   if (is.na(sIndex)) {
     stop("Target condition '", target, "' not found in tissues vector")
   }
 
   nbTreat <- length(sFactors)
-  idx_list <- unlist(lapply(seq_len(nbTreat), function(i) {
-    start_col <- sum(sFactors[seq_len(i - 1)]) + 1
-    end_col <- start_col + sFactors[i] - 1
-    idx <- start_col:end_col
-    if (sFactors[i] == 1) rep(idx, 3)
-    else if (sFactors[i] == 2) c(idx, idx[1])
-    else idx
-  }), use.names = FALSE)
-  adj_sFactors <- ifelse(sFactors < 3, 3, sFactors)
-  eset_expanded <- eset[, idx_list, drop = FALSE]
+  # no pseudo-replication: pooled variance already borrows df across groups
+  adj_sFactors <- sFactors
+  eset_expanded <- eset
 
   iter <- 1
   found <- FALSE
@@ -374,7 +374,7 @@ ts.IUT <- function(name,
                     preExpanded = TRUE,
                     adj_sFactors = adj_sFactors) ######
 
-    ts_scores <- fast_tsi_tse(eset, tissues)
+    ts_scores <- fast_tsi_tse(eset, tissues, log_scale = log_scale)
 
     group_cols <- which(tissues == target)
     ts_keep <- rowMeans(eset[, group_cols, drop = FALSE]) > finalFilter &

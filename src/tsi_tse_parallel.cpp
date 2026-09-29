@@ -57,12 +57,15 @@ struct TSEWorker : public Worker {
         if (v > maxVal) maxVal = v;
         if (v < minVal) minVal = v;
       }
-      if (!R_finite(maxVal) || maxVal <= 0.0) {
-        tse[i] = NA_REAL;
+      // Exclusion index = tau computed on the inverted profile (max - x):
+      // 1 when the gene is low in exactly one tissue and uniformly high elsewhere.
+      double range = maxVal - minVal;
+      if (!R_finite(range) || range <= 0.0) {
+        tse[i] = 0.0;
         continue;
       }
       for (int j = 0; j < n; j++) {
-        sumVal += 1.0 - (minVal / maxVal);
+        sumVal += (mat(i, j) - minVal) / range;
       }
       tse[i] = sumVal / (n - 1);
     }

@@ -6,14 +6,17 @@
 #' @param pernum Number of permutations for GCC significance.
 #' @param useBestGCC Logical, whether to use the best GCC method.
 #' @param asymmetricGCC Logical, whether to compute asymmetric GCC.
+#' @param seed Integer seed for the GCC permutation test (results are reproducible).
 #' @return Data frame with correlations and p-values.
 #' @export
 multiCorr <- function(expression, edges,
                       methods = c("GCC", "PCC", "SCC", "KCC"),
                       pernum = 0,
-                      useBestGCC = FALSE, asymmetricGCC = FALSE) {
+                      useBestGCC = FALSE, asymmetricGCC = FALSE,
+                      seed = 12345) {
 
   if (is.data.frame(expression)) expression <- as.matrix(expression)
+  edges <- data.table::as.data.table(edges)
   stopifnot(is.matrix(expression), all(c("source", "target") %in% colnames(edges)))
 
   gene_index <- setNames(seq_len(nrow(expression)), rownames(expression))
@@ -42,7 +45,8 @@ multiCorr <- function(expression, edges,
     as.integer(pernum),
     useBestGCC,
     asymmetricGCC,
-    rownames(edges)[valid_edges]  # Pass original rownames of valid edges
+    rownames(edges)[valid_edges],  # Pass original rownames of valid edges
+    as.numeric(seed)
   )
   # Convert to data.table and bind to edges
   cpp_dt <- safe_as_data_table(res_cpp)
@@ -51,7 +55,7 @@ multiCorr <- function(expression, edges,
   setnames(empty_results, names(cpp_dt))
   # Fill only the valid edges
   empty_results[valid_edges, ] <- cpp_dt
-  out <- cbind(edges, empty_results)
+  out <- data.table::as.data.table(cbind(edges, empty_results))
 
   # Filter for requested methods only
   keep_cols <- c("source", "target")
@@ -59,5 +63,5 @@ multiCorr <- function(expression, edges,
     keep_cols <- c(keep_cols, m, paste0(m, "_pvalue"))
     if (m == "GCC") keep_cols <- c(keep_cols, "GCC1", "GCC2")
   }
-  return(out[, ..keep_cols])
+  return(out[, keep_cols, with = FALSE])
 }

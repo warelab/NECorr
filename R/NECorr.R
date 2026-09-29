@@ -17,6 +17,9 @@
 #' @param useBestGCC TRUE/FALSE whether to use the best GCC method
 #' @param asymmetricGCC TRUE/FALSE whether to use asymmetric GCC, only if useBestGCC is TRUE, see multiCorr documentation
 #' @param save_results TRUE/FALSE whether to save results to CSV files
+#' @param weights "entropy" (entropy weight method), "equal", or a named numeric vector of criterion weights
+#' @param log_scale TRUE if expression is log2-transformed; tissue-specificity indices are then computed on the linear scale
+#' @param seed integer seed for all permutation steps (reproducibility)
 #' @param ... Additional arguments passed to correlation functions.
 #' @description NECorr helps discover candidate genes that could be
 #' important for specific conditions.
@@ -38,7 +41,8 @@ NECorr <- function(networkFile, expression, description.file,
                    method="GCC", visualize = TRUE,
                    output_dir = NULL, interactive_net = FALSE,
                    top_n = 20, save_results = TRUE,
-                   useBestGCC = FALSE, asymmetricGCC = FALSE, ...) {
+                   useBestGCC = FALSE, asymmetricGCC = FALSE,
+                   weights = "entropy", log_scale = TRUE, seed = 12345, ...) {
 
   requireNamespace("data.table", quietly = TRUE)
   requireNamespace("matrixStats", quietly = TRUE)
@@ -196,32 +200,36 @@ NECorr <- function(networkFile, expression, description.file,
   #### 7. Handle replicates ####
   # --- Handle replicates ---
   sample.names <- unique(factortab$condition)
-  idx_list <- unlist(lapply(sample.names, function(sn) {
-    idx <- which(factortab$condition == sn)
-    if (length(idx) == 1) rep(idx, 3) else idx
-  }))
-
-  # Create factor for DE analysis
-  treatment.f <- factor(rep(sample.names, times = ifelse(table(factortab$condition) == 1, 3, table(factortab$condition))),
-                        levels = sample.names)
+  # Columns are grouped by condition WITHOUT duplicating samples: duplicated
+  # columns inflate the effective sample size of correlations and t-tests.
+  sample_order <- match(expr_sample_cols, factortab$sample_id)
+  cond_by_col <- factortab$condition[sample_order]
+  idx_list <- unlist(lapply(sample.names, function(sn) which(cond_by_col == sn)))
+  if (any(table(cond_by_col) < 2)) {
+    warning("Some conditions have a single sample; DE and tissue-specificity tests rely on pooled variance only.")
+  }
+  # Factor built from the reordered columns themselves (label-order invariant)
+  treatment.f <- factor(cond_by_col[idx_list], levels = sample.names)
 
   #### 8. Filter expression matrix ####
   eset <- eset[gene_id %in% Genelist]
   m.eset <- as.matrix(eset[, ..expr_cols])[ , idx_list, drop = FALSE]
   rownames(m.eset) <- eset$gene_id
   # Tissues vector matches m.eset columns
-  tissues <- factortab$condition[idx_list]
+  tissues <- cond_by_col[idx_list]
   update_progress(5) # Filtering expression
   #print(paste("Expression data filtered to", nrow(m.eset), "genes and", ncol(m.eset), "samples."))
   #### 9. Correlation (multiCorr) ####
   int.sig.full <- multiCorr(expression = m.eset, edges = network.int,
-                            pernum = permutation, methods = method, useBestGCC = useBestGCC, asymmetricGCC = asymmetricGCC)
+                            pernum = permutation, methods = method, useBestGCC = useBestGCC, asymmetricGCC = asymmetricGCC,
+                            seed = seed)
   update_progress(6) #Calculating correlation
   # print(paste("Correlation calculated for", nrow(int.sig.full), "edges using methods:", paste(methods, collapse = ", ")))
   #### 10. Tissue specificity ####
   ts.res <- ts.IUT(name = paste(condition, permutation, sep = "_"),
                    eset = m.eset, tissues = tissues,
-                   target = condition, threshold = 0.05, filter = 3, minGenes = 5)
+                   target = condition, threshold = 0.05, filter = 3, minGenes = 5,
+                   log_scale = log_scale)
   tsi.order <- if (!is.null(ts.res)) {
     #message("Head of tissue specificity index (TSI)")
     #print(head(ts.res$filtTSI))
@@ -230,7 +238,7 @@ NECorr <- function(networkFile, expression, description.file,
     colnames(ts.res$filtTSE) <- c("gene", "TSI")
     ts <- rbind(ts.res$filtTSI, ts.res$filtTSE)
     ts <- ts[!duplicated(ts$gene), ]
-    ScalN(setNames(ts$TSI, ts$gene))
+    if (nrow(ts) > 0) ScalN(setNames(ts$TSI, ts$gene)) else data.frame(Gene = Genelist, TSI = 0)
   } else {
     data.frame(Gene = Genelist, TSI = 0)
   }
@@ -239,15 +247,15 @@ NECorr <- function(networkFile, expression, description.file,
   # print(paste("Tissue specificity calculated for", nrow(tsi.order), "genes."))
   #### 11. Integrate p-values (no rowwise) ####
   N_edges <- nrow(int.sig.full)
-  rank_matrix <- safe_as_data_table(lapply(int.sig.full[, ..methods], function(x) frankv(-x, ties.method = "average")))
-  AvgRank <- rowMeans(as.matrix(rank_matrix), na.rm = TRUE)
-  Correlation <- 1 - 2 * ((AvgRank - 1) / (N_edges - 1))
+  # Average of the correlation coefficients themselves (sign and magnitude kept).
+  # The former rank-centring made weak edges look strong once abs() was taken.
+  Correlation <- rowMeans(as.matrix(int.sig.full[, methods, with = FALSE]), na.rm = TRUE)
 
+  # The p-values of GCC/PCC/SCC/KCC come from the same data and are strongly
+  # dependent; Fisher's method assumes independence. The Cauchy combination
+  # (ACAT) stays calibrated under arbitrary dependence.
   pval_cols <- paste0(methods, "_pvalue")
-  log_p <- log(as.matrix(int.sig.full[, ..pval_cols]))
-  Fisher_chi2 <- -2 * rowSums(log_p, na.rm = TRUE)
-  Fisher_df <- 2 * rowSums(!is.na(log_p))
-  pvalue <- pchisq(Fisher_chi2, df = Fisher_df, lower.tail = FALSE)
+  pvalue <- apply(as.matrix(int.sig.full[, pval_cols, with = FALSE]), 1, cauchyCombine)
 
   int.sig <- data.table(source = int.sig.full$source,
                         target = int.sig.full$target,
@@ -262,7 +270,7 @@ NECorr <- function(networkFile, expression, description.file,
   )
   agg <- edge_long[, .(
     mean_abs_corr = mean(abs(Correlation), na.rm = TRUE),
-    min_pval = fishersMethod(pvalue)
+    min_pval = cauchyCombine(pvalue)
   ), by = Gene]
 
   coexpr_df <- ScalN(setNames(agg$mean_abs_corr, agg$Gene))
@@ -322,7 +330,15 @@ NECorr <- function(networkFile, expression, description.file,
   #     m.param$Gene <- NULL
   #   }
   #### 16. Hub ranking ####
-  weights <- entropy_weight(m.param)
+  if (is.numeric(weights)) {
+    stopifnot(all(colnames(m.param) %in% names(weights)))
+    weights <- weights[colnames(m.param)] / sum(weights[colnames(m.param)])
+  } else if (identical(weights, "equal")) {
+    weights <- rep(1 / ncol(m.param), ncol(m.param))
+  } else {
+    weights <- entropy_weight(m.param)
+  }
+  names(weights) <- colnames(m.param)
   hub.m.param <- sweep(as.matrix(m.param), 2, weights, `*`)
   gene.rank.h <- sort(rowSums(hub.m.param), decreasing = TRUE)
   gene_rank_df <- data.frame(Gene = names(gene.rank.h), Score = gene.rank.h)
@@ -343,7 +359,10 @@ NECorr <- function(networkFile, expression, description.file,
     necorrEdges = hub.int.significant,
     netstat = as.data.frame(netstat),
     coexpres = as.data.frame(int.sig.full),
-    hub.m.param = m.param
+    hub.m.param = m.param,
+    criterion_weights = weights,
+    settings = list(seed = seed, weights = if (is.character(weights)) weights else "custom",
+                    tsi_threshold = ts.res$finalThreshold, tsi_filter = ts.res$finalFilter)
   )
   #### 19. Visualization ####
   if (visualize) {

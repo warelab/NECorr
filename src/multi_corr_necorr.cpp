@@ -128,52 +128,26 @@ double calcGiniSymmetric(const vector<double> &X, const vector<double> &Y) {
   return signVal * sqrt(fabs(gammaXY * gammaYX));
 }
 
-// ===================== Optimized permutation test =====================
-double permutationTests(double originalGCC, const vector<double> &xData, const vector<int> &xIdx,
-                        const vector<double> &yData, const vector<int> &yIdx,
-                        const vector<double> &wt, int perm) {
-  int n = xData.size();
-  if (fabs(originalGCC) >= 0.999999) {
-    return 1.0 / (perm + 1); // extremely significant
-  }
-
-  double xDenominator = 0, yDenominator = 0;
-  for (int i = 0; i < n; i++) {
-    xDenominator += wt[i] * xData[xIdx[i]];
-    yDenominator += wt[i] * yData[yIdx[i]];
-  }
-  if (xDenominator == 0 || yDenominator == 0) return 1.0;
-
-  vector<int> indices(n);
-  iota(indices.begin(), indices.end(), 0);
-  mt19937 rng(random_device{}());
-
-  int m = 0;
+// ===================== Permutation test (fixed) =====================
+// The null distribution is built by permuting Y and recomputing the SAME statistic
+// that is reported (symmetric or asymmetric GCC). An edge-specific seed makes the
+// result reproducible and independent of thread scheduling.
+double permutationTests(double originalGCC, const vector<double> &xData,
+                        const vector<double> &yData, bool asymmetric,
+                        int perm, unsigned long long seed) {
+  if (!R_finite(originalGCC)) return NA_REAL;
+  vector<double> yPerm(yData);
+  mt19937_64 rng(seed);
+  int m = 0, done = 0;
   for (int p = 0; p < perm; p++) {
-    shuffle(indices.begin(), indices.end(), rng);
-
-    double xNumerator = 0, yNumerator = 0;
-    for (int i = 0; i < n; i++) {
-      xNumerator += wt[i] * xData[indices[yIdx[i]]];
-      yNumerator += wt[i] * yData[indices[xIdx[i]]];
-    }
-
-    double xGCC = xNumerator / xDenominator;
-    double yGCC = yNumerator / yDenominator;
-
-    if (fabs(xGCC) >= fabs(originalGCC) || fabs(yGCC) >= fabs(originalGCC)) {
-      m++;
-    }
-
-    if ((p == 10 && ((double)m / p) > 0.5) ||
-        (p == 100 && ((double)m / p) > 0.2) ||
-        (p == 500 && ((double)m / p) > 0.1)) {
-      perm = p + 1;
-      break;
-    }
+    shuffle(yPerm.begin(), yPerm.end(), rng);
+    double g = asymmetric ? giniAsym(xData, yPerm) : calcGiniSymmetric(xData, yPerm);
+    if (fabs(g) >= fabs(originalGCC) - 1e-12) m++;
+    done = p + 1;
+    // sequential early stopping only when the edge is clearly non-significant
+    if ((done == 100 && (double)m / done > 0.3) || (done == 500 && (double)m / done > 0.15)) break;
   }
-
-  return ((double)m + 1) / ((double)perm + 1); // +1 for stability
+  return ((double)m + 1.0) / ((double)done + 1.0);
 }
 
 // ===================== Parallel Worker =====================
@@ -187,6 +161,7 @@ struct MultiCorrWorker : public Worker {
   int bootstrapIterations;
   bool useBestGCC;
   bool asymmetricGCC;
+  unsigned long long seed;
 
   RVector<double> gcc, gcc_pval, gcc1_vec, gcc2_vec;
   RVector<double> pcc, pcc_pval, scc, scc_pval, kcc, kcc_pval;
@@ -200,6 +175,7 @@ struct MultiCorrWorker : public Worker {
                   int bootstrapIterations,
                   bool useBestGCC,
                   bool asymmetricGCC,
+                  unsigned long long seed,
                   NumericVector gcc, NumericVector gcc_pval,
                   NumericVector gcc1_vec, NumericVector gcc2_vec,
                   NumericVector pcc, NumericVector pcc_pval,
@@ -211,6 +187,7 @@ struct MultiCorrWorker : public Worker {
       bootstrapIterations(bootstrapIterations),
       useBestGCC(useBestGCC),
       asymmetricGCC(asymmetricGCC),
+      seed(seed),
       gcc(gcc), gcc_pval(gcc_pval),
       gcc1_vec(gcc1_vec), gcc2_vec(gcc2_vec),
       pcc(pcc), pcc_pval(pcc_pval),
@@ -253,7 +230,8 @@ struct MultiCorrWorker : public Worker {
       gcc[i] = chosen_gcc;
 
       if (bootstrapIterations > 0) {
-        gcc_pval[i] = permutationTests(chosen_gcc, xData, xRank, yData, yRank, wtVec, bootstrapIterations);
+        gcc_pval[i] = permutationTests(chosen_gcc, xData, yData, asymmetricGCC,
+                                        bootstrapIterations, seed + 7919ULL * (unsigned long long)(i + 1));
       } else {
         gcc_pval[i] = NA_REAL;
       }
@@ -298,7 +276,8 @@ DataFrame multi_corr_necorr(NumericMatrix expression,
                             int bootstrapIterations = 0,
                             bool useBestGCC = false,
                             bool asymmetricGCC = false,
-                            CharacterVector rownames_in = CharacterVector()) {
+                            CharacterVector rownames_in = CharacterVector(),
+                            double seed = 12345) {
   int nEdges = src.size();
   int nSamples = expression.ncol();
 
@@ -315,6 +294,7 @@ DataFrame multi_corr_necorr(NumericMatrix expression,
 
   MultiCorrWorker worker(expression, ranks, wt, src, tgt, nSamples,
                          bootstrapIterations, useBestGCC, asymmetricGCC,
+                         (unsigned long long)seed,
                          gcc, gcc_pval, gcc1_vec, gcc2_vec,
                          pcc, pcc_pval, scc, scc_pval, kcc, kcc_pval);
 

@@ -170,6 +170,20 @@ fishersMethod <- function(x) {
   pchisq(-2 * sum(log(x)), df = 2 * length(x), lower.tail = FALSE)
 }
 
+#' cauchyCombine
+#' @description Cauchy (ACAT) combination of p-values, valid under arbitrary dependence
+#' (Liu & Xie 2020, JASA).
+#' @param p Numeric vector of p-values
+#' @return Combined p-value
+#' @export
+cauchyCombine <- function(p) {
+  p <- p[!is.na(p)]
+  if (length(p) == 0) return(NA_real_)
+  p <- pmin(pmax(p, 1e-15), 1 - 1e-15)
+  stat <- mean(tan((0.5 - p) * pi))
+  0.5 - atan(stat) / pi
+}
+
 #' indexing.network
 #' @description Replace gene names in network with their row indices in expression matrix
 #' @param tab Expression matrix (rownames = genes)
