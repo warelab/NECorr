@@ -134,7 +134,15 @@ NECorr <- function(networkFile, expression, description.file,
     eset[, 1 := NULL]
     eset[, gene_id := gene_ids]
     setkey(eset, gene_id)
-  } else { eset <- safe_as_data_table(expression) }
+  } else {
+    eset <- data.table::as.data.table(expression)  # copy
+    if (!"gene_id" %in% names(eset)) {
+      if (!is.character(eset[[1]]) && !is.factor(eset[[1]])) stop("expression: first column must hold gene IDs (or name it 'gene_id')")
+      setnames(eset, 1, "gene_id")
+    }
+    eset[, gene_id := as.character(gene_id)]
+    setkey(eset, gene_id)
+  }
   update_progress(2) # Loading expression
   #print(paste("Expression data loaded with", nrow(eset), "genes and", ncol(eset)-1, "samples."))
   #### 3. Load description ####
