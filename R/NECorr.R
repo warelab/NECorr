@@ -152,40 +152,32 @@ NECorr <- function(networkFile, expression, description.file,
   update_progress(3) # Loading description
   #print(paste("Description data loaded with", nrow(description_df), "entries."))
   #### 4. Load metadata ####
-  if (is.character(meta_data) && file.exists(meta_data)) {
-    factortab <- fread(meta_data, header = TRUE,
-                       nThread = n_threads, showProgress = FALSE)
-    # First column is sample IDs
-    sample_ids <- factortab[[1]]
-    # Remove the first column from the data.table
-    factortab[, 1 := NULL]
-    # Rename the current first column to "condition"
-    setnames(factortab, 1, "condition")
-    # Add sample_id as a separate column
-    factortab[, sample_id := sample_ids]
-    # Set rownames for internal use
-    rownames(factortab) <- sample_ids
-  } else if (is.data.frame(meta_data) || is.data.table(meta_data)) {
-    factortab <- meta_data
-    # Rename second column to "condition"
-    setnames(factortab, 1, "condition")
-    # Set rownames from sample_id
-    factortab[, sample_id := rownames(factortab)]
-    setcolorder(factortab, c("sample_id", "condition"))
+  # Accepted layouts (file, data.frame or data.table):
+  #  (a) column 1 = sample IDs matching expression columns, column 2 = condition
+  #  (b) sample IDs as row names, column 1 = condition
+  expr_sample_cols <- setdiff(colnames(eset), "gene_id")
+  if (is.character(meta_data) && length(meta_data) == 1 && file.exists(meta_data)) {
+    md <- as.data.frame(fread(meta_data, header = TRUE, nThread = n_threads, showProgress = FALSE))
+  } else if (is.data.frame(meta_data)) {
+    rn <- rownames(meta_data)  # read before coercion: data.table row names are lost by as.data.frame()
+    md <- as.data.frame(meta_data, stringsAsFactors = FALSE)  # copy; never modify the user's object
+    rownames(md) <- rn
   } else {
-      stop("Metadata must have at least two columns: sample_id and condition")
+    stop("meta_data must be a file path, data.frame or data.table")
   }
-    # Verify sample IDs match expression column names (excluding gene_id)
-    expr_sample_cols <- setdiff(colnames(eset), "gene_id")
-    if (!setequal(rownames(factortab), expr_sample_cols)) {
-      stop("Mismatch between metadata sample IDs and expression data column names.")
+  if (ncol(md) >= 2 && all(as.character(md[[1]]) %in% expr_sample_cols)) {
+    ids <- as.character(md[[1]]); cond <- as.character(md[[2]])
+  } else if (!is.null(rownames(md)) && all(rownames(md) %in% expr_sample_cols)) {
+    ids <- rownames(md); cond <- as.character(md[[1]])
+  } else {
+    stop("meta_data: sample IDs (column 1 or row names) must match the expression column names")
+  }
+  factortab <- data.table(sample_id = ids, condition = cond)
+  if (!setequal(factortab$sample_id, expr_sample_cols)) {
+    stop("Mismatch between metadata sample IDs and expression data column names.")
   }
   update_progress(4) # Loading metadata
   #print(paste("Metadata loaded with", nrow(factortab), "samples."))
-  #### 5. Check sample existence ####
-  if (!all(factortab$sample_id %in% colnames(eset)[-which(names(eset) == "gene_id")])) {
-    stop("Some samples in meta_data are not present in the expression data")
-  }
 
   #### 6. Prepare data ####
   Genelist <- unique(c(network.int$source, network.int$target))
