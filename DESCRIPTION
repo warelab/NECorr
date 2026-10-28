@@ -1,7 +1,7 @@
 Package: NECorr
 Type: Package
 Title: NECorr - Network Expression Correlation Ranking
-Version: 3.6.0
+Version: 3.6.1
 Authors@R: c(
     person("Christophe", "Liseron-Monfils", email = "cliseron21@gmail.com", role = c("aut", "cre")),
     person("Andrew", "Olson", role = c("aut")))
