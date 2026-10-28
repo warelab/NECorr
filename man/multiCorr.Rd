@@ -10,7 +10,8 @@ multiCorr(
   methods = c("GCC", "PCC", "SCC", "KCC"),
   pernum = 0,
   useBestGCC = FALSE,
-  asymmetricGCC = FALSE
+  asymmetricGCC = FALSE,
+  seed = 12345
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ multiCorr(
 \item{useBestGCC}{Logical, whether to use the best GCC method.}
 
 \item{asymmetricGCC}{Logical, whether to compute asymmetric GCC.}
+
+\item{seed}{Integer seed for the GCC permutation test (results are reproducible).}
 }
 \value{
 Data frame with correlations and p-values.

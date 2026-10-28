@@ -1,43 +1,33 @@
-#' Entropy Weight Calculation (C++)
+#' Entropy weight calculation (C++)
 #'
-#' Internal function called by NECorr for entropy-based weighting of matrices.
 #' @param mat A numeric matrix.
 #' @return A numeric vector of weights.
 #' @keywords internal
-#' @export
-entropy_weight_cpp <- function(mat) {
-  .Call(`_NECorr_entropy_weight_cpp`, mat)
-}
+#' @name entropy_weight_cpp
+NULL
 
-#' Multi-Correlation Calculation (C++)
+#' Edge correlations (C++)
 #'
-#' Internal function called by NECorr to compute multiple correlation metrics on network edges.
-#' @param expression Numeric expression matrix.
-#' @param ranks Numeric matrix of ranks.
-#' @param src Integer vector of source indices.
-#' @param tgt Integer vector of target indices.
-#' @param bootstrapIterations Integer, number of bootstrap iterations.
-#' @param usebestgcc Logical, whether to use the best correlation method.
-#' @param asymmetricgcc Logical, whether to use asymmetric GCC.
-#' @param rownames_in Logical, whether row names are provided.
-#' @param seed Numeric seed for the permutation test.
-#' @return A data frame with correlation values.
-#' @export
-#' @importFrom Rcpp evalCpp
-multi_corr_necorr <- function(expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in, seed = 12345) {
-  .Call(`_NECorr_multi_corr_necorr`, expression, ranks, src, tgt, bootstrapIterations, usebestgcc, asymmetricgcc, rownames_in, seed)
-}
-
-#'compute_TSI_TSE_parallel (C++)
-#'
-#' Internal function called by NECorr to compute Tissue Specificity Index (TSI) and Tissue Specific Expression (TSE) in parallel.
-#' @param expression Numeric expression matrix.
-#' @return A list containing TSI and TSE values.
+#' Computes GCC, PCC, SCC and KCC for each network edge. Use
+#' \code{\link{multiCorr}} instead of calling this directly.
+#' @param expression Numeric expression matrix (genes x samples).
+#' @param ranks Numeric matrix of average ranks, same shape as \code{expression}.
+#' @param src,tgt Zero-based row indices of the two genes of each edge.
+#' @param bootstrapIterations Number of permutations for the GCC p-value.
+#' @param useBestGCC Not used.
+#' @param asymmetricGCC Logical, use the asymmetric Gini correlation.
+#' @param rownames_in Optional row names for the output.
+#' @param seed Seed of the permutation test.
+#' @param which Logical vector of length 4: compute GCC, PCC, SCC, KCC.
+#' @return A data frame of correlations and p-values.
 #' @keywords internal
-#' @export
-#' @importFrom Rcpp evalCpp
-#' @importFrom parallel detectCores
+#' @name multi_corr_necorr
+NULL
 
-compute_TSI_TSE_parallel <- function(expression) {
-  .Call(`_NECorr_compute_TSI_TSE_parallel`, expression)
-}
+#' Tissue specificity and exclusion indices (C++)
+#'
+#' @param expr Numeric matrix (genes x conditions) on the linear scale.
+#' @return A list with TSI and TSE.
+#' @keywords internal
+#' @name compute_TSI_TSE_parallel
+NULL

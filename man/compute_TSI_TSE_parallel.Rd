@@ -2,17 +2,14 @@
 % Please edit documentation in R/Rcpp_wrappers.R
 \name{compute_TSI_TSE_parallel}
 \alias{compute_TSI_TSE_parallel}
-\title{compute_TSI_TSE_parallel (C++)}
-\usage{
-compute_TSI_TSE_parallel(expression)
-}
+\title{Tissue specificity and exclusion indices (C++)}
 \arguments{
-\item{expression}{Numeric expression matrix.}
+\item{expr}{Numeric matrix (genes x conditions) on the linear scale.}
 }
 \value{
-A list containing TSI and TSE values.
+A list with TSI and TSE.
 }
 \description{
-Internal function called by NECorr to compute Tissue Specificity Index (TSI) and Tissue Specific Expression (TSE) in parallel.
+Tissue specificity and exclusion indices (C++)
 }
 \keyword{internal}

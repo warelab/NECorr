@@ -1,44 +1,26 @@
 Package: NECorr
 Type: Package
 Title: NECorr - Network Expression Correlation Ranking
-Version: 3.0.0
+Version: 3.6.0
 Authors@R: c(
-    person("Christophe", "Liseron-Monfils", role = c("aut")),
-    person("Andrew", "Olson", role = c("aut")),
-    person("Your", "Name", email = "you@example.com", role = c("cre")))
+    person("Christophe", "Liseron-Monfils", email = "cliseron21@gmail.com", role = c("aut", "cre")),
+    person("Andrew", "Olson", role = c("aut")))
 Description: NECorr integrates molecular network topology and expression correlation 
     to prioritise candidate genes for specific conditions.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 4.0)
-Imports: 
-    igraph,
-    ggplot2,
-    ggraph,
-    visNetwork,
-    limma,
-    Biobase,
-    data.table,
-    dplyr,
-    matrixStats,
-    patchwork,
-    purrr,
-    scales,
-    tibble,
-    tidyr,
-    Rcpp,
-    RcppParallel,
-    parallel,
-    rlang,
-    WGCNA,
-    impute,
-    impute,
-    htmlwidgets
-Remotes:
-    bioc::impute
+Imports: igraph, ggplot2, ggraph, limma, data.table, dplyr, patchwork,
+        scales, Rcpp, RcppParallel, parallel, rlang, htmlwidgets
 LinkingTo: Rcpp, RcppParallel
 Roxygen: list(markdown = TRUE)
-Suggests: knitr, rmarkdown, BiocManager
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0), visNetwork
+Config/testthat/edition: 3
 VignetteBuilder: knitr
 RoxygenNote: 7.3.3
+NeedsCompilation: yes
+Packaged: 2026-10-06 00:09:55 UTC; root
+Author: Christophe Liseron-Monfils [aut, cre],
+  Andrew Olson [aut]
+Maintainer: Christophe Liseron-Monfils <cliseron21@gmail.com>

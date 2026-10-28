@@ -5,49 +5,53 @@
 \title{ts.IUT}
 \usage{
 ts.IUT(
-  name,
+  name = NULL,
   eset,
   tissues,
   target,
   threshold = 0.05,
-  filter = 1,
-  minGenes = 1,
+  filter = NULL,
+  minGenes = 5,
   maxIter = 5,
   loosenFactor = 2,
-  filterDecrease = 0.5
+  filterDecrease = 0.5,
+  relax = FALSE,
+  prop_required = 0.8,
+  log_scale = TRUE
 )
 }
 \arguments{
-\item{name}{Analysis name.}
+\item{name}{Analysis name (unused, kept for backward compatibility).}
 
-\item{eset}{Expression matrix.}
+\item{eset}{Expression matrix (genes x samples).}
 
-\item{tissues}{Vector of tissue types for columns.}
+\item{tissues}{Vector of condition labels for the columns.}
 
-\item{target}{Target tissue.}
+\item{target}{Target condition.}
 
-\item{threshold}{p-value threshold for IUT.}
+\item{threshold}{BH-adjusted p-value threshold of the IUT.}
 
-\item{filter}{Minimum expression threshold.}
+\item{filter}{Minimum mean expression. For selective genes it applies to the
+target condition; for excluded genes it applies to the other conditions (the
+gene must be expressed somewhere to be called excluded). \code{NULL} uses the
+25th percentile of all values, which adapts to the scale of the data.}
 
-\item{minGenes}{Minimum number of genes to find before stopping.}
+\item{minGenes, maxIter, loosenFactor, filterDecrease}{Only used when
+\code{relax = TRUE}: the threshold is multiplied by \code{loosenFactor} and
+the filter by \code{filterDecrease} until \code{minGenes} genes are found.}
 
-\item{maxIter}{Maximum number of iterations to relax criteria.}
+\item{relax}{Logical. FALSE (default) applies the stated threshold once.
+Relaxation changes the meaning of the test and is reported in the output.}
 
-\item{loosenFactor}{Factor to increase p-value threshold each iteration.}
+\item{prop_required}{Fraction of pairwise comparisons that must be significant.}
 
-\item{filterDecrease}{Factor to decrease expression threshold each iteration.}
+\item{log_scale}{TRUE if \code{eset} is log2-transformed.}
 }
 \value{
-List with filtTSI and filtTSE matrices.
+List with filtTSI, filtTSE, finalThreshold, finalFilter, relaxed.
 }
 \description{
-Combine TSI/TSE tests and IUT to determine tissue-specific and tissue-excluded genes.
-}
-\details{
-This function iteratively applies the Intersection-Union Test (IUT)
-to identify tissue-specific (TS) and tissue-excluded (TE) genes.
-It starts with stringent criteria and relaxes them if not enough genes are found.
-The process continues until at least \code{minGenes} are found or \code{maxIter} is reached.
-The function returns filtered TS and TE gene lists.
+Identify genes selectively expressed in (TS) or excluded from
+(TE) the target condition with the intersection-union test, then score them
+with the tissue-specificity (tau) and tissue-exclusion indices.
 }

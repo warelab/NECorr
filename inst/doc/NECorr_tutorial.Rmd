@@ -1,0 +1,175 @@
+---
+title: "NECorr: ranking the genes of a network for one condition"
+author: "Christophe Liseron-Monfils"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{NECorr: ranking the genes of a network for one condition}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 4.5)
+library(NECorr)
+```
+
+NECorr ranks the genes of a molecular network for their importance in one
+condition, using expression data measured across several conditions.
+
+# Example data
+
+The package ships a small simulated data set: a regulatory network of 12
+transcription factors, and expression of 120 genes in four conditions.
+`Gene001` and its targets are co-expressed and induced in flower.
+
+```{r}
+data(necorr_example)
+head(necorr_example$networkFile, 3)
+necorr_example$expression[1:3, 1:5]
+head(necorr_example$meta_data, 3)
+head(necorr_example$description.file, 3)
+```
+
+The same data are available as text files, and `NECorr()` accepts file paths:
+
+```{r}
+list.files(system.file("extdata", package = "NECorr"), pattern = "^example_")
+```
+
+# Running NECorr
+
+```{r}
+res <- NECorr(
+  networkFile      = necorr_example$networkFile,
+  expression       = necorr_example$expression,
+  description.file = necorr_example$description.file,
+  meta_data        = necorr_example$meta_data,
+  condition        = "flower",
+  method           = "GCC",
+  permutation      = 200,
+  directed         = TRUE,
+  n_null           = 50,
+  visualize        = FALSE,
+  save_results     = FALSE,
+  verbose          = FALSE
+)
+```
+
+`method` can be one or several of `"GCC"` (Gini), `"PCC"` (Pearson), `"SCC"`
+(Spearman) and `"KCC"` (Kendall). `permutation` is the number of permutations
+for the GCC p-value. `n_null` adds an empirical p-value per gene.
+
+# Results
+
+Ranked genes. `Gene001` and its targets are expected at the top.
+
+```{r}
+head(res$necorrHub_nodes, 8)
+```
+
+The criteria behind the score, each as a rank between 0 and 1, and their weights:
+
+```{r}
+round(head(res$hub.m.param[res$necorrHub_nodes$Gene, ], 5), 2)
+round(res$criterion_weights, 3)
+```
+
+Candidate regulators, ordered by their own score. The enrichment of top-scoring genes among their targets is shown alongside.
+
+```{r}
+head(res$necorrReg[, c("Gene", "role", "n_partners", "n_hub_partners", "fold_enrichment", "FDR")], 5)
+```
+
+Top-ranked edges. `percentile` is a rank among all edges, not a p-value.
+
+```{r}
+head(res$necorrEdges, 5)
+```
+
+What was run:
+
+```{r}
+str(res$settings[c("weights", "aggregation", "direction", "scaling", "degree_type", "directed")])
+```
+
+# Criteria, weights and aggregation
+
+By default the score is the rank product of two criteria. `DE` is the
+differential expression of the condition against the mean of the other
+conditions, counted only when the gene is up-regulated (`direction = "up"`).
+`Degree` is the number of targets of the gene in a directed network, and the
+number of partners in an undirected one (`degree_type`). Each is turned into a
+rank divided by the number of genes and the score is their geometric mean, so
+there is no weight to choose and up-regulated regulators with many targets
+come first. This default was selected on human cancer cell lines, where
+genome-wide CRISPR screens give a complete ground truth.
+
+Four further criteria can be added. `TS` measures how consistently the gene is
+higher in the condition than in every other condition. `Coexpr` counts the
+network partners that are strongly co-expressed with the gene and compares the
+count with random partners drawn as in a degree-preserving randomisation of the
+network. `CondCoexpr` is `Coexpr` restricted to the part of the correlation
+that comes from the samples of the condition. `Bridging` is betweenness
+centrality beyond what degree predicts.
+
+A ranking that uses only the wiring and the expression, with weights from the
+Analytic Hierarchy Process (AHP):
+
+```{r}
+c3 <- c("Coexpr", "TS", "CondCoexpr")
+A <- necorr_ahp_matrix(c3, preset = "wiring")
+round(A, 2)
+ahp <- ahp_weights(A)
+round(ahp$weights, 2)
+ahp$CR   # consistency ratio, should be below 0.1
+res_wiring <- NECorr(
+  necorr_example$networkFile, necorr_example$expression, necorr_example$description.file,
+  "flower", necorr_example$meta_data, method = "PCC", permutation = 0,
+  criteria = c3, aggregation = "product", scaling = "softcap", weights = A,
+  directed = TRUE, visualize = FALSE, save_results = FALSE, verbose = FALSE)
+round(res_wiring$criterion_weights, 2)
+head(res_wiring$coexpression_stats[order(-res_wiring$coexpression_stats$Coexpr), c("Gene", "k", "n_strong", "Coexpr", "CondCoexpr")], 3)
+```
+
+To use your own judgements, edit the matrix (keeping it reciprocal) and pass it
+as `weights`. Other options are `"critic"`, `"equal"`, `"entropy"`, or a named
+numeric vector. The criteria are combined by a weighted product by default;
+`aggregation = "sum"` gives the weighted sum.
+
+```{r}
+res_alt <- NECorr(
+  necorr_example$networkFile, necorr_example$expression, necorr_example$description.file,
+  "flower", necorr_example$meta_data, method = "PCC", permutation = 0,
+  criteria = c("Coexpr", "TS", "CondCoexpr", "DE"), weights = "critic", aggregation = "sum",
+  directed = TRUE, visualize = FALSE, save_results = FALSE, verbose = FALSE)
+round(res_alt$criterion_weights, 3)
+head(res_alt$necorrHub_nodes$Gene, 8)
+```
+
+# Plots and saved files
+
+```{r, fig.height = 4}
+plots <- visualize_necorr_results(res, top_n = 15)
+plots$top_hubs_plot
+```
+
+```{r, fig.height = 5}
+plots$network_plot
+```
+
+With `save_results = TRUE` and an `output_dir`, `NECorr()` writes
+`necorrHub_nodes.csv`, `necorrReg.csv`, `necorrEdges.csv`, `coexpres.csv`,
+`hub.m.param.csv`, `netstat.csv` and `criterion_weights.csv`.
+
+# Notes on use
+
+- The network must be measured independently of the expression data. Do not
+  use a co-expression network built from the same samples.
+- Set `directed = FALSE` for protein-protein interaction networks. Genes in
+  `necorrReg` are then reported as "associated", not as regulators.
+- Correlations are imprecise with fewer than about 8 to 10 samples.
+- The default follows up-regulation and the number of targets, so only genes
+  that are regulators in the network can reach the top of the list. Give the
+  network with the regulator in the first column and `directed = TRUE`.
+- The co-expression criteria need network edges that are reflected in the
+  expression data, and they did not improve the ranking on the human benchmark.

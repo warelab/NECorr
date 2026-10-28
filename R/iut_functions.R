@@ -5,6 +5,7 @@
 #' run parallel TSI/TSE, and normalise from 0 to 1
 #' @param expr Numeric expression matrix (genes x samples).
 #' @param tissues Character vector of tissue types for each sample (column).
+#' @param log_scale TRUE if \code{expr} is log2-transformed; indices are then computed on the linear scale.
 #' @return Data frame with columns: gene, TSI, TSE (normalized from 0 to 1).
 #' @export
 #' @importFrom parallel detectCores
@@ -214,10 +215,11 @@ IUTtse <- function(data, geneTS, targetSample = NULL, maxExpThreshold = NULL, ti
 #' @param alpha Significance level.
 #' @param preExpanded Logical indicating if m.eset is already expanded for replicates.
 #' @param adj_sFactors Adjusted sample factors (for pre-expanded data).
+#' @param prop_required Fraction of pairwise comparisons that must be significant (1 = strict IUT).
 #' @return List with TS (tissue-specific) and TE (tissue-excluded) logical vectors.
 #' @export
 IUTest <- function(m.eset, sFactors, sIndex, alpha,
-                   preExpanded = FALSE, adj_sFactors = NULL) {
+                   preExpanded = FALSE, adj_sFactors = NULL, prop_required = 0.8) {
   tryCatch({
     # Validate inputs
     m.eset <- as.matrix(m.eset)
@@ -285,8 +287,8 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha,
     # Adjust using BH FDR
     pvals_adj <- matrix(p.adjust(as.vector(pvals), method = "BH"),
                         nrow = nrow(pvals), ncol = ncol(pvals))
-    # Proportion threshold (e.g., 0.8 means 80% of comparisons must be sig.)
-    prop_required <- 0.8
+    # prop_required = 1 is the strict intersection-union test (every pairwise
+    # comparison significant); 0.8 tolerates one similar condition in five.
     # TS: significantly higher in target tissue
     resultpos <- rowSums(pvals_adj < alpha & tstattab > 0) >= prop_required * (nbTreat - 1)
     # TE: significantly lower in target tissue
@@ -303,110 +305,74 @@ IUTest <- function(m.eset, sFactors, sIndex, alpha,
 }
 
 # ========================
-# ts.IUT: Adaptive thresholding for NECorr
+# ts.IUT: condition-specific and condition-excluded genes
 # ========================
 #' ts.IUT
-#' @description Combine TSI/TSE tests and IUT to determine tissue-specific and tissue-excluded genes.
-#' @param name Analysis name.
-#' @param eset Expression matrix.
-#' @param tissues Vector of tissue types for columns.
-#' @param target Target tissue.
-#' @param threshold p-value threshold for IUT.
-#' @param filter Minimum expression threshold.
-#' @param minGenes Minimum number of genes to find before stopping.
-#' @param maxIter Maximum number of iterations to relax criteria.
-#' @param loosenFactor Factor to increase p-value threshold each iteration.
-#' @param filterDecrease Factor to decrease expression threshold each iteration.
-#' @details This function iteratively applies the Intersection-Union Test (IUT)
-#' to identify tissue-specific (TS) and tissue-excluded (TE) genes.
-#' It starts with stringent criteria and relaxes them if not enough genes are found.
-#' The process continues until at least `minGenes` are found or `maxIter` is reached.
-#' The function returns filtered TS and TE gene lists.
-#' @return List with filtTSI and filtTSE matrices.
+#' @description Identify genes selectively expressed in (TS) or excluded from
+#' (TE) the target condition with the intersection-union test, then score them
+#' with the tissue-specificity (tau) and tissue-exclusion indices.
+#' @param name Analysis name (unused, kept for backward compatibility).
+#' @param eset Expression matrix (genes x samples).
+#' @param tissues Vector of condition labels for the columns.
+#' @param target Target condition.
+#' @param threshold BH-adjusted p-value threshold of the IUT.
+#' @param filter Minimum mean expression. For selective genes it applies to the
+#' target condition; for excluded genes it applies to the other conditions (the
+#' gene must be expressed somewhere to be called excluded). \code{NULL} uses the
+#' 25th percentile of all values, which adapts to the scale of the data.
+#' @param minGenes,maxIter,loosenFactor,filterDecrease Only used when
+#' \code{relax = TRUE}: the threshold is multiplied by \code{loosenFactor} and
+#' the filter by \code{filterDecrease} until \code{minGenes} genes are found.
+#' @param relax Logical. FALSE (default) applies the stated threshold once.
+#' Relaxation changes the meaning of the test and is reported in the output.
+#' @param prop_required Fraction of pairwise comparisons that must be significant.
+#' @param log_scale TRUE if \code{eset} is log2-transformed.
+#' @return List with filtTSI, filtTSE, finalThreshold, finalFilter, relaxed.
 #' @export
-# Integrated ts.IUT with adaptive threshold/filter and fast TSI/TSE
-ts.IUT <- function(name,
+ts.IUT <- function(name = NULL,
                    eset,
                    tissues,
                    target,
                    threshold = 0.05,
-                   filter = 1,
-                   minGenes = 1,
+                   filter = NULL,
+                   minGenes = 5,
                    maxIter = 5,
                    loosenFactor = 2,
                    filterDecrease = 0.5,
+                   relax = FALSE,
+                   prop_required = 0.8,
                    log_scale = TRUE) {
   eset <- as.matrix(eset)
-  if (length(tissues) != ncol(eset)) {
-    stop("'tissues' length must match ncol(eset)")
-  }
-
+  if (length(tissues) != ncol(eset)) stop("'tissues' length must match ncol(eset)")
   sample.names <- unique(tissues)
+  if (length(sample.names) < 2) stop("Tissue specificity needs at least 2 conditions")
   # group columns contiguously in sample.names order; counts in the SAME order
   ord <- order(match(tissues, sample.names))
   eset <- eset[, ord, drop = FALSE]; tissues <- tissues[ord]
   sFactors <- as.integer(table(factor(tissues, levels = sample.names)))
   sIndex <- match(target, sample.names)
-  if (is.na(sIndex)) {
-    stop("Target condition '", target, "' not found in tissues vector")
+  if (is.na(sIndex)) stop("Target condition '", target, "' not found in tissues vector")
+  if (is.null(filter)) filter <- unname(stats::quantile(eset, 0.25, na.rm = TRUE))
+
+  ts_scores <- fast_tsi_tse(eset, tissues, log_scale = log_scale)
+  in_target <- tissues == target
+  mean_target <- rowMeans(eset[, in_target, drop = FALSE])
+  mean_other <- rowMeans(eset[, !in_target, drop = FALSE])
+
+  finalThreshold <- threshold; finalFilter <- filter
+  iter <- 1; relaxed <- FALSE
+  repeat {
+    t.iut <- IUTest(eset, sFactors = NULL, sIndex = sIndex, alpha = finalThreshold,
+                    preExpanded = TRUE, adj_sFactors = sFactors, prop_required = prop_required)
+    ts_keep <- t.iut$TS & mean_target > finalFilter
+    te_keep <- t.iut$TE & mean_other > finalFilter
+    enough <- sum(ts_keep) >= minGenes || sum(te_keep) >= minGenes
+    if (!relax || enough || iter >= maxIter) break
+    finalThreshold <- min(1, finalThreshold * loosenFactor)
+    finalFilter <- finalFilter * filterDecrease
+    iter <- iter + 1; relaxed <- TRUE
   }
-
-  nbTreat <- length(sFactors)
-  # no pseudo-replication: pooled variance already borrows df across groups
-  adj_sFactors <- sFactors
-  eset_expanded <- eset
-
-  iter <- 1
-  found <- FALSE
-  finalThreshold <- threshold
-  finalFilter <- filter
-  filtTSI <- NULL
-  filtTSE <- NULL
-
-  while (iter <= maxIter && !found) {
-    #message(sprintf("ts.IUT: Iteration %d - threshold=%.5f, filter=%.3f",
-    #                iter, finalThreshold, finalFilter))
-
-    t.iut <- IUTest(eset_expanded,
-                    sFactors = NULL,
-                    sIndex = sIndex,
-                    alpha = finalThreshold,
-                    preExpanded = TRUE,
-                    adj_sFactors = adj_sFactors) ######
-
-    ts_scores <- fast_tsi_tse(eset, tissues, log_scale = log_scale)
-
-    group_cols <- which(tissues == target)
-    ts_keep <- rowMeans(eset[, group_cols, drop = FALSE]) > finalFilter &
-      t.iut$TS
-    filtTSI <- ts_scores[ts_keep, c("gene", "TSI"), drop = FALSE]
-
-    te_keep <- rowMeans(eset[, group_cols, drop = FALSE]) < finalFilter &
-      t.iut$TE
-    filtTSE <- ts_scores[te_keep, c("gene", "TSE"), drop = FALSE]
-
-    # message("ts.IUT: Found ", nrow(filtTSI), " TS and ", nrow(filtTSE), " TE after filtering.")
-
-    if (nrow(filtTSI) >= minGenes || nrow(filtTSE) >= minGenes) {
-      found <- TRUE
-    } else {
-      finalThreshold <- min(1, finalThreshold * loosenFactor)
-      finalFilter <- max(0, finalFilter * filterDecrease)
-      iter <- iter + 1
-    }
-  }
-
-  if (!found) {
-    # message("ts.IUT: No TS/TE found after ", maxIter, " iterations.")
-  } else {
-    # message(sprintf("ts.IUT: Final parameters - threshold=%.5f, filter=%.3f",
-    #                finalThreshold, finalFilter))
-  }
-
-  return(list(
-    filtTSI = filtTSI,
-    filtTSE = filtTSE,
-    finalThreshold = finalThreshold,
-    finalFilter = finalFilter
-  ))
+  list(filtTSI = ts_scores[ts_keep, c("gene", "TSI"), drop = FALSE],
+       filtTSE = ts_scores[te_keep, c("gene", "TSE"), drop = FALSE],
+       finalThreshold = finalThreshold, finalFilter = finalFilter, relaxed = relaxed)
 }

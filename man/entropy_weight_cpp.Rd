@@ -2,10 +2,7 @@
 % Please edit documentation in R/Rcpp_wrappers.R
 \name{entropy_weight_cpp}
 \alias{entropy_weight_cpp}
-\title{Entropy Weight Calculation (C++)}
-\usage{
-entropy_weight_cpp(mat)
-}
+\title{Entropy weight calculation (C++)}
 \arguments{
 \item{mat}{A numeric matrix.}
 }
@@ -13,6 +10,6 @@ entropy_weight_cpp(mat)
 A numeric vector of weights.
 }
 \description{
-Internal function called by NECorr for entropy-based weighting of matrices.
+Entropy weight calculation (C++)
 }
 \keyword{internal}

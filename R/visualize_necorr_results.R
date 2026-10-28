@@ -17,7 +17,6 @@
 #' @importFrom ggplot2 geom_point geom_histogram scale_size_continuous scale_color_manual theme_void
 #' @importFrom ggraph ggraph geom_edge_link geom_node_point geom_node_text
 #' @importFrom igraph "V<-"
-#' @importFrom visNetwork visNetwork visNodes visEdges visOptions
 #' @importFrom dplyr arrange filter mutate select
 #' @importFrom rlang .data
 #' @export
@@ -39,7 +38,7 @@ visualize_necorr_results <- function(necorr_results,
   requireNamespace("dplyr")
   requireNamespace("rlang")
   requireNamespace("patchwork")
-  requireNamespace("visNetwork")
+  has_vis <- requireNamespace("visNetwork", quietly = TRUE)
   requireNamespace("htmlwidgets")
 
   # --- 1. Top hub genes ---
@@ -61,19 +60,18 @@ visualize_necorr_results <- function(necorr_results,
 
   # --- 2. Filter edges early ---
   edges_df <- necorr_results$necorrEdges
-  if ("ranks.sum" %in% colnames(edges_df)) {
-    edges_df <- dplyr::arrange(edges_df, dplyr::desc(ranks.sum))
-  }
+  edges_df <- edges_df[order(-edges_df$edge_score), , drop = FALSE]
   edges_df <- head(edges_df, max_network_edges)
 
   # Build igraph from filtered edges
   nodes <- data.frame(name = unique(c(edges_df$sourceIDs, edges_df$targetIDs)))
   g <- igraph::graph_from_data_frame(edges_df, vertices = nodes, directed = FALSE)
   igraph::V(g)$hub_score <- hub_df$Score[match(igraph::V(g)$name, hub_df$Gene)]
-  igraph::E(g)$weight <- edges_df$ranks.sum
+  igraph::E(g)$weight <- edges_df$edge_score
 
-  if (highlight_regulators && "necorrReg" %in% names(necorr_results)) {
-    regulators <- necorr_results$necorrReg$Gene
+  reg <- necorr_results$necorrReg
+  if (highlight_regulators && !is.null(reg) && nrow(reg) > 0) {
+    regulators <- reg$Gene[reg$FDR < 0.05]
     igraph::V(g)$is_regulator <- ifelse(igraph::V(g)$name %in% regulators,
                                         "Regulator", "Other")
   } else {
@@ -94,43 +92,35 @@ visualize_necorr_results <- function(necorr_results,
     to = igraph::as_edgelist(g)[,2],
     width = scales::rescale(igraph::E(g)$weight, to = c(1, 8)),  # thickness
     color = "#999999",
-    title = paste("Edge Importance (ranks.sum):", round(igraph::E(g)$weight, 2))
+    title = paste("Edge score:", round(igraph::E(g)$weight, 2))
   )
 
-  # --- 4. Create network ---
-  p2 <- visNetwork::visNetwork(nodes_vis, edges_vis) %>%
-    visNetwork::visNodes(
-      scaling = list(min = 5, max = 30),
-      color = list(
-        background = "grey",
-        border = "black",
-        highlight = "yellow"
-      )
-    ) %>%
-    visNetwork::visGroups(groupname = "Regulator",
-                          color = list(background = "red", border = "black")) %>%
-    visNetwork::visGroups(groupname = "Other",
-                          color = list(background = "grey", border = "black")) %>%
-    visNetwork::visEdges(smooth = FALSE) %>%
-    visNetwork::visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
-    visNetwork::visLayout(randomSeed = 42)
-
-  # --- 5. Handle interactive vs non-interactive ---
-  if (!interactive_net) {
-    if (is.null(output_dir)) {
-      output_dir <- tempdir()
-    }
-    # Ensure directory exists
-    if (!dir.exists(output_dir)) {
+  # --- 4. Network plot: interactive (visNetwork) when available, static otherwise ---
+  p2 <- NULL
+  if (has_vis) {
+    p2 <- visNetwork::visNetwork(nodes_vis, edges_vis)
+    p2 <- visNetwork::visNodes(p2, scaling = list(min = 5, max = 30),
+                               color = list(background = "grey", border = "black", highlight = "yellow"))
+    p2 <- visNetwork::visGroups(p2, groupname = "Regulator", color = list(background = "red", border = "black"))
+    p2 <- visNetwork::visGroups(p2, groupname = "Other", color = list(background = "grey", border = "black"))
+    p2 <- visNetwork::visEdges(p2, smooth = FALSE)
+    p2 <- visNetwork::visOptions(p2, highlightNearest = TRUE, nodesIdSelection = TRUE)
+    p2 <- visNetwork::visLayout(p2, randomSeed = 42)
+    if (!interactive_net && !is.null(output_dir)) {
       dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+      htmlwidgets::saveWidget(p2, file = file.path(output_dir, "network_plot.html"), selfcontained = TRUE)
     }
-
-    out_file <- file.path(output_dir, "network_plot.html")
-    htmlwidgets::saveWidget(
-      p2,
-      file = out_file,
-      selfcontained = TRUE)
-    message("Static network HTML saved to: ", out_file)
+  }
+  if (!has_vis || !interactive_net) {
+    p2_static <- ggraph::ggraph(g, layout = "fr") +
+      ggraph::geom_edge_link(ggplot2::aes(edge_width = weight), colour = "grey70", alpha = 0.7) +
+      ggraph::geom_node_point(ggplot2::aes(size = hub_score, colour = is_regulator)) +
+      ggraph::geom_node_text(ggplot2::aes(label = name), repel = TRUE, size = 3) +
+      ggraph::scale_edge_width(range = c(0.3, 2), guide = "none") +
+      ggplot2::scale_colour_manual(values = c(Regulator = "firebrick", Other = "grey40"), name = NULL) +
+      ggplot2::scale_size_continuous(name = "NECorr score") +
+      ggplot2::theme_void()
+    if (!interactive_net) p2 <- p2_static
   }
 
   # --- 6. Co-expression scatter plots ---
@@ -146,14 +136,12 @@ visualize_necorr_results <- function(necorr_results,
     corr_col <- corr
     pval_col <- corr_types[[corr]]
     if (all(c(corr_col, pval_col) %in% colnames(coexp_df))) {
-      df_plot <- coexp_df %>%
-        dplyr::filter(!is.na(.data[[corr_col]]),
-                      !is.na(.data[[pval_col]]),
-                      .data[[pval_col]] > 0)
+      df_plot <- coexp_df[!is.na(coexp_df[[corr_col]]) & !is.na(coexp_df[[pval_col]]) &
+                            coexp_df[[pval_col]] > 0, , drop = FALSE]
       if (nrow(df_plot) > 0) {
         p <- ggplot2::ggplot(df_plot,
-                             ggplot2::aes(x = corr_col,
-                                                 y = paste0("-log10(", pval_col, ")"))) +
+                             ggplot2::aes(x = .data[[corr_col]],
+                                          y = -log10(.data[[pval_col]]))) +
           ggplot2::geom_point(alpha = 0.4, color = "darkgreen") +
           ggplot2::labs(title = paste("Co-expression Significance -", corr),
                         x = corr_col, y = "-log10(p-value)") +

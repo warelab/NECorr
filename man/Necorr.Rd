@@ -2,7 +2,7 @@
 % Please edit documentation in R/NECorr.R
 \name{NECorr}
 \alias{NECorr}
-\title{NECorr}
+\title{NECorr: rank genes of a molecular network for one condition}
 \usage{
 NECorr(
   networkFile,
@@ -19,60 +19,172 @@ NECorr(
   save_results = TRUE,
   useBestGCC = FALSE,
   asymmetricGCC = FALSE,
+  weights = "equal",
+  criteria = c("DE", "Degree"),
+  aggregation = c("product", "sum", "waspas"),
+  epsilon = 0.01,
+  direction = c("up", "both"),
+  scaling = c("rank", "softcap"),
+  degree_type = c("targets", "total"),
+  coexpr_stat = c("tail", "mean"),
+  tail_q = 0.95,
+  directed = NULL,
+  n_background = 200,
+  full_netstat = FALSE,
+  edge_top = 0.05,
+  n_null = 0,
+  log_scale = TRUE,
+  ts_alpha = 0.05,
+  ts_relax = FALSE,
+  seed = 12345,
+  verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{networkFile}{file or data.table of Molecular network file with source in the first column,
-targets in the second column
-with the same name than the network file and the same localization}
+\item{networkFile}{File path or data.frame/data.table of edges: source in the
+first column, target in the second (a three-column file is read as
+source, interaction type, target).}
 
-\item{expression}{file or data.table of Expression file in log2 (ratio expression) with row: gene,
-first column: type of sample,second column: sample names}
+\item{expression}{File path or data.frame/data.table: gene IDs in the first
+column, one column per sample. Log2 scale expected (see \code{log_scale}).}
 
-\item{description.file}{file or data.table of the genome description}
+\item{description.file}{File path or data.frame/data.table of gene
+descriptions, gene IDs in the first column.}
 
-\item{condition}{Condition from expression to study the network co-expression correlation}
+\item{condition}{Name of the condition to rank genes for.}
 
-\item{meta_data}{file or data.table with the meta_data}
+\item{meta_data}{File path or data.frame/data.table giving the condition of
+each sample: sample IDs in the first column (or as row names) and the
+condition in the next column.}
 
-\item{permutation}{permutation number used for all significance calculation}
+\item{permutation}{Number of permutations for the GCC p-value (0 = none).}
 
-\item{method}{correlation method: GCC, PCC, KCC, SCC, SPP; c("GCC", "PCC", "SCC", "KCC")}
+\item{method}{Correlation method(s): any of "GCC", "PCC", "SCC", "KCC".}
 
-\item{visualize}{TRUE/FALSE whether to generate visualizations of the results}
+\item{visualize}{TRUE/FALSE, build the summary plots.}
 
-\item{output_dir}{Optional directory to save results and plots if}
+\item{output_dir}{Directory for results and plots (required if \code{save_results}).}
 
-\item{interactive_net}{TRUE/FALSE whether to generate an interactive network}
+\item{interactive_net}{TRUE/FALSE, return an interactive network (needs visNetwork).}
 
-\item{top_n}{Number of top hub genes to highlight in plots}
+\item{top_n}{Number of top genes shown in plots.}
 
-\item{save_results}{TRUE/FALSE whether to save results to CSV files}
+\item{save_results}{TRUE/FALSE, write result tables as CSV.}
 
-\item{useBestGCC}{TRUE/FALSE whether to use the best GCC method}
+\item{useBestGCC}{Kept for backward compatibility; not used.}
 
-\item{asymmetricGCC}{TRUE/FALSE whether to use asymmetric GCC, only if useBestGCC is TRUE, see multiCorr documentation}
+\item{asymmetricGCC}{TRUE/FALSE, use the asymmetric Gini correlation.}
 
-\item{...}{Additional arguments passed to correlation functions.}
+\item{weights}{Criterion weighting: "equal" (default), "ahp", "critic",
+"entropy", a named numeric vector, or a Saaty pairwise-comparison matrix
+with criteria as dimnames.}
+
+\item{criteria}{Criteria to combine, among Coexpr, CondCoexpr, TS, DE,
+Bridging and Degree. Default: \code{c("DE", "Degree")}, the pair validated
+on human CRISPR dependencies (NECorr 3.4). "Degree" makes the score increase
+with connectivity; leave it out for a ranking that does not depend on how
+many partners a gene has.}
+
+\item{aggregation}{"product" (default): weighted geometric mean, so a gene
+must do well on all criteria together. "sum": weighted sum, where a high value on one
+criterion compensates for a low value on another.
+"waspas": the mean of the two.}
+
+\item{epsilon}{Small constant added to the 0-1 criteria before the product.}
+
+\item{direction}{"up" (default): DE and TS count only genes expressed more
+in the target condition than elsewhere (positive moderated t), because a
+gene must be expressed in a condition to be required there. "both": absolute
+statistics, so that genes excluded from the condition also score (NECorr 3.3).}
+
+\item{scaling}{"rank" (default): each criterion is replaced by rank / n,
+which with \code{aggregation = "product"} gives a rank product. "softcap":
+0-1 scaling with a bounded soft cap above the 99th percentile (NECorr 3.3).}
+
+\item{degree_type}{"targets" (default): in a directed network the Degree
+criterion is the number of targets of the gene (out-degree), so that genes
+without targets share the lowest degree rank. "total": the number of
+partners, regulators and targets together; this is always used for
+undirected networks.}
+
+\item{coexpr_stat, tail_q}{How co-expression with partners is summarised, see
+\code{\link{gene_coexpression}}.}
+
+\item{directed}{Is the network directed (source regulates target)? TRUE,
+FALSE, or NULL to decide with \code{\link{detect_direction}}. Direction is
+used to rank regulators; hub criteria use the undirected network.}
+
+\item{n_background}{Number of random non-partner genes used as each gene's
+co-expression baseline.}
+
+\item{full_netstat}{TRUE to also compute betweenness for the \code{netstat}
+table when the Bridging criterion is not used (slow on large networks).}
+
+\item{edge_top}{Fraction of top-ranked edges returned in \code{necorrEdges}.}
+
+\item{n_null}{Number of null permutations for empirical gene p-values (0 = none).
+Expression profiles are shuffled among the network genes, which keeps the
+network and the expression data intact but breaks their correspondence.
+p-values are computed within groups of genes of similar degree.}
+
+\item{log_scale}{TRUE if expression is log2-transformed.}
+
+\item{ts_alpha}{FDR threshold used to report the number of selective and
+excluded genes. It does not affect the ranking.}
+
+\item{ts_relax}{Kept for backward compatibility; not used.}
+
+\item{seed}{Integer seed for all permutation steps.}
+
+\item{verbose}{TRUE/FALSE, show progress.}
+
+\item{...}{Ignored.}
 }
 \value{
-res
+A list: \code{necorrHub_nodes} (ranked genes), \code{necorrReg}
+(candidate regulators, see \code{\link{rank_regulators}}), \code{necorrEdges}
+(top-ranked edges), \code{edge_ranking} (all edges), \code{netstat},
+\code{coexpres} (edge correlations), \code{hub.m.param} (criteria matrix),
+\code{criterion_weights}, \code{settings}, and \code{plots} if requested.
 }
 \description{
-NECorr helps discover candidate genes that could be
-important for specific conditions.
-The principal inputs are the expression data and the network file.
-The expression data should start with 3 header columns.
-The first column describes the conditions. Each condition will be
-treated separately for the co-expression analysis
-The output of the program will be generated in a result folder generated
-in the working path
-Create the output directory if not existing; generate "./results" dir and
-"./results/tmp"
-C.Liseron-Monfils - Ware lab Sept2013 - CSHL
-partly based on rsgcc package for the GCC, PCC,KCC and SCC correlation
-Ma et al, 2012, plant Physiology
+NECorr ranks the genes of a molecular network for their
+importance in one condition (tissue, treatment, stage) from criteria
+computed on expression data and on the network:
+\describe{
+\item{DE}{differential expression of the target condition against the
+mean of the others (limma moderated t)}
+\item{Degree}{number of network partners}
+\item{TS}{selective expression in the target condition
+(see \code{\link{condition_specificity}})}
+\item{Coexpr}{how much more the gene is co-expressed with its network
+partners than with random genes (see \code{\link{gene_coexpression}})}
+\item{CondCoexpr}{the same for the part of the co-expression that comes
+from the target-condition samples}
+\item{Bridging}{betweenness centrality beyond what the gene's degree
+predicts}
+}
+The default (NECorr 3.4) is the rank product of two criteria: up-regulation
+in the target condition (DE with \code{direction = "up"}) and Degree, the
+number of targets of the gene in a directed network. It is
+the scheme that recovered most lineage-selective CRISPR dependencies in the
+human benchmark; a supervised model given all criteria did not improve on
+it. The six-criteria scheme of NECorr 3.3 is obtained with
+\code{criteria = c("Coexpr", "CondCoexpr", "TS", "DE", "Bridging", "Degree")},
+\code{weights = "ahp"}, \code{aggregation = "sum"}, \code{direction = "both"}
+and \code{scaling = "softcap"}.
+}
+\examples{
+data(necorr_example)
+res <- NECorr(networkFile = necorr_example$networkFile,
+              expression = necorr_example$expression,
+              description.file = necorr_example$description.file,
+              condition = "flower", meta_data = necorr_example$meta_data,
+              method = "PCC", permutation = 0,
+              visualize = FALSE, save_results = FALSE, verbose = FALSE)
+head(res$necorrHub_nodes)
+res$criterion_weights
 }
 \author{
 Christophe Liseron-Monfils, Andrew Olson

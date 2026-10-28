@@ -30,36 +30,29 @@ inline double pearsonCorrelation(const vector<double> &xData, const vector<doubl
 }
 
 // ===================== Spearman correlation =====================
-inline double spearmanCorrelation(const vector<int> &xRank, const vector<int> &yRank) {
-  int n = xRank.size();
-  double mean_x = (n - 1) / 2.0;
-  double mean_y = (n - 1) / 2.0;
-  double num = 0.0, den_x = 0.0, den_y = 0.0;
-  for (int i = 0; i < n; i++) {
-    double dx = xRank[i] - mean_x;
-    double dy = yRank[i] - mean_y;
-    num += dx * dy;
-    den_x += dx * dx;
-    den_y += dy * dy;
-  }
-  if (den_x <= 0.0 || den_y <= 0.0) return 0.0;
-  return num / sqrt(den_x * den_y);
+// Pearson correlation of average ranks: correct in the presence of ties
+// (frequent with RNA-seq zeros).
+inline double spearmanCorrelation(const vector<double> &xRank, const vector<double> &yRank) {
+  return pearsonCorrelation(xRank, yRank);
 }
 
-// ===================== Kendall correlation =====================
+// ===================== Kendall correlation (tau-b) =====================
+// tau-b corrects the denominator for ties; equals tau-a when there are none.
 inline double kendallCorrelation(const vector<double> &xData, const vector<double> &yData) {
   int n = xData.size();
-  int concordant = 0, discordant = 0;
+  double concordant = 0, discordant = 0, tieX = 0, tieY = 0;
   for (int i = 0; i < n - 1; i++) {
     for (int j = i + 1; j < n; j++) {
       double dx = xData[i] - xData[j];
       double dy = yData[i] - yData[j];
-      double prod = dx * dy;
-      if (prod > 0) concordant++;
-      else if (prod < 0) discordant++;
+      if (dx == 0 && dy == 0) continue;
+      else if (dx == 0) tieX++;
+      else if (dy == 0) tieY++;
+      else if (dx * dy > 0) concordant++;
+      else discordant++;
     }
   }
-  double denom = 0.5 * n * (n - 1);
+  double denom = sqrt((concordant + discordant + tieX) * (concordant + discordant + tieY));
   if (denom == 0) return 0.0;
   return (concordant - discordant) / denom;
 }
@@ -153,7 +146,7 @@ double permutationTests(double originalGCC, const vector<double> &xData,
 // ===================== Parallel Worker =====================
 struct MultiCorrWorker : public Worker {
   const RMatrix<double> data;
-  const RMatrix<int> ranks;
+  const RMatrix<double> ranks;
   const RVector<double> wt;
   const RVector<int> src;
   const RVector<int> tgt;
@@ -162,12 +155,13 @@ struct MultiCorrWorker : public Worker {
   bool useBestGCC;
   bool asymmetricGCC;
   unsigned long long seed;
+  bool doG, doP, doS, doK;
 
   RVector<double> gcc, gcc_pval, gcc1_vec, gcc2_vec;
   RVector<double> pcc, pcc_pval, scc, scc_pval, kcc, kcc_pval;
 
   MultiCorrWorker(const NumericMatrix data,
-                  const IntegerMatrix ranks,
+                  const NumericMatrix ranks,
                   const NumericVector wt,
                   const IntegerVector src,
                   const IntegerVector tgt,
@@ -176,6 +170,7 @@ struct MultiCorrWorker : public Worker {
                   bool useBestGCC,
                   bool asymmetricGCC,
                   unsigned long long seed,
+                  bool doG, bool doP, bool doS, bool doK,
                   NumericVector gcc, NumericVector gcc_pval,
                   NumericVector gcc1_vec, NumericVector gcc2_vec,
                   NumericVector pcc, NumericVector pcc_pval,
@@ -187,7 +182,7 @@ struct MultiCorrWorker : public Worker {
       bootstrapIterations(bootstrapIterations),
       useBestGCC(useBestGCC),
       asymmetricGCC(asymmetricGCC),
-      seed(seed),
+      seed(seed), doG(doG), doP(doP), doS(doS), doK(doK),
       gcc(gcc), gcc_pval(gcc_pval),
       gcc1_vec(gcc1_vec), gcc2_vec(gcc2_vec),
       pcc(pcc), pcc_pval(pcc_pval),
@@ -196,7 +191,7 @@ struct MultiCorrWorker : public Worker {
 
   void operator()(size_t begin, size_t end) {
     vector<double> xData(nSamples), yData(nSamples), wtVec(nSamples);
-    vector<int> xRank(nSamples), yRank(nSamples);
+    vector<double> xRank(nSamples), yRank(nSamples);
     wtVec.assign(wt.begin(), wt.end());
 
     for (size_t i = begin; i < end; i++) {
@@ -217,51 +212,41 @@ struct MultiCorrWorker : public Worker {
         yRank[j] = ranks(i2, j);
       }
 
-      double gcc1_val = giniAsym(xData, yData);
-      double gcc2_val = giniAsym(yData, xData);
-      if (!R_finite(gcc1_val)) gcc1_val = 0.0;
-      if (!R_finite(gcc2_val)) gcc2_val = 0.0;
+      gcc[i] = gcc_pval[i] = gcc1_vec[i] = gcc2_vec[i] = NA_REAL;
+      pcc[i] = pcc_pval[i] = scc[i] = scc_pval[i] = kcc[i] = kcc_pval[i] = NA_REAL;
 
-      gcc1_vec[i] = gcc1_val;
-      gcc2_vec[i] = gcc2_val;
-
-      double chosen_gcc = asymmetricGCC ? gcc1_val : calcGiniSymmetric(xData, yData);
-      if (!R_finite(chosen_gcc)) chosen_gcc = 0.0;
-      gcc[i] = chosen_gcc;
-
-      if (bootstrapIterations > 0) {
-        gcc_pval[i] = permutationTests(chosen_gcc, xData, yData, asymmetricGCC,
-                                        bootstrapIterations, seed + 7919ULL * (unsigned long long)(i + 1));
-      } else {
-        gcc_pval[i] = NA_REAL;
+      if (doG) {
+        double gcc1_val = giniAsym(xData, yData);
+        double gcc2_val = giniAsym(yData, xData);
+        if (!R_finite(gcc1_val)) gcc1_val = 0.0;
+        if (!R_finite(gcc2_val)) gcc2_val = 0.0;
+        gcc1_vec[i] = gcc1_val;
+        gcc2_vec[i] = gcc2_val;
+        double chosen_gcc = asymmetricGCC ? gcc1_val : calcGiniSymmetric(xData, yData);
+        if (!R_finite(chosen_gcc)) chosen_gcc = 0.0;
+        gcc[i] = chosen_gcc;
+        if (bootstrapIterations > 0) {
+          gcc_pval[i] = permutationTests(chosen_gcc, xData, yData, asymmetricGCC,
+                                         bootstrapIterations, seed + 7919ULL * (unsigned long long)(i + 1));
+        }
       }
-
-      double r_pcc = pearsonCorrelation(xData, yData);
-      pcc[i] = r_pcc;
-      if (R_finite(r_pcc)) {
-        double t_stat = r_pcc * sqrt((nSamples - 2) / (1 - r_pcc * r_pcc));
+      if (doP) {
+        double r_pcc = pearsonCorrelation(xData, yData);
+        pcc[i] = r_pcc;
+        double t_stat = r_pcc * sqrt((nSamples - 2) / std::max(1e-12, 1 - r_pcc * r_pcc));
         pcc_pval[i] = 2 * R::pt(-fabs(t_stat), nSamples - 2, 1, 0);
-      } else {
-        pcc_pval[i] = NA_REAL;
       }
-
-      double r_scc = spearmanCorrelation(xRank, yRank);
-      scc[i] = r_scc;
-      if (R_finite(r_scc)) {
-        double t_stat = r_scc * sqrt((nSamples - 2) / (1 - r_scc * r_scc));
+      if (doS) {
+        double r_scc = spearmanCorrelation(xRank, yRank);
+        scc[i] = r_scc;
+        double t_stat = r_scc * sqrt((nSamples - 2) / std::max(1e-12, 1 - r_scc * r_scc));
         scc_pval[i] = 2 * R::pt(-fabs(t_stat), nSamples - 2, 1, 0);
-      } else {
-        scc_pval[i] = NA_REAL;
       }
-
-      double r_kcc = kendallCorrelation(xData, yData);
-      kcc[i] = r_kcc;
-      if (R_finite(r_kcc)) {
-        double z_stat = r_kcc * sqrt((9 * nSamples * (nSamples - 1)) /
-                                     (2 * (2 * nSamples + 5)));
+      if (doK) {
+        double r_kcc = kendallCorrelation(xData, yData);
+        kcc[i] = r_kcc;
+        double z_stat = r_kcc * sqrt((9.0 * nSamples * (nSamples - 1)) / (2.0 * (2 * nSamples + 5)));
         kcc_pval[i] = 2 * R::pnorm(-fabs(z_stat), 0, 1, 1, 0);
-      } else {
-        kcc_pval[i] = NA_REAL;
       }
     }
   }
@@ -270,14 +255,15 @@ struct MultiCorrWorker : public Worker {
 // ===================== Exported function =====================
 // [[Rcpp::export]]
 DataFrame multi_corr_necorr(NumericMatrix expression,
-                            IntegerMatrix ranks,
+                            NumericMatrix ranks,
                             IntegerVector src,
                             IntegerVector tgt,
-                            int bootstrapIterations = 0,
-                            bool useBestGCC = false,
-                            bool asymmetricGCC = false,
-                            CharacterVector rownames_in = CharacterVector(),
-                            double seed = 12345) {
+                            int bootstrapIterations,
+                            bool useBestGCC,
+                            bool asymmetricGCC,
+                            CharacterVector rownames_in,
+                            double seed,
+                            LogicalVector which) {
   int nEdges = src.size();
   int nSamples = expression.ncol();
 
@@ -295,6 +281,7 @@ DataFrame multi_corr_necorr(NumericMatrix expression,
   MultiCorrWorker worker(expression, ranks, wt, src, tgt, nSamples,
                          bootstrapIterations, useBestGCC, asymmetricGCC,
                          (unsigned long long)seed,
+                         (bool)which[0], (bool)which[1], (bool)which[2], (bool)which[3],
                          gcc, gcc_pval, gcc1_vec, gcc2_vec,
                          pcc, pcc_pval, scc, scc_pval, kcc, kcc_pval);
 

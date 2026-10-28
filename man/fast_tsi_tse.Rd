@@ -4,12 +4,14 @@
 \alias{fast_tsi_tse}
 \title{fast_tsi_tse}
 \usage{
-fast_tsi_tse(expr, tissues)
+fast_tsi_tse(expr, tissues, log_scale = TRUE)
 }
 \arguments{
 \item{expr}{Numeric expression matrix (genes x samples).}
 
 \item{tissues}{Character vector of tissue types for each sample (column).}
+
+\item{log_scale}{TRUE if \code{expr} is log2-transformed; indices are then computed on the linear scale.}
 }
 \value{
 Data frame with columns: gene, TSI, TSE (normalized from 0 to 1).

@@ -1,116 +1,145 @@
 # =========================
-#' hub_edge_significance
+# Edge ranking and regulator ranking
+# =========================
+
+#' Rank network edges by the NECorr scores of their two genes
 #'
-#' @param network.int network file
-#' @param gene.rank.vec gene ranking hash
-#' @description define the hub edge ranking
-#' @return res
-hub_edge_significance <- function(network.int, gene.rank.vec) {
-  # Ensure gene.rank.vec is named
+#' @description Each edge receives the mean NECorr score of its two genes and
+#' its percentile among all edges (1 = highest-scoring edge). This is a
+#' ranking, not a statistical test.
+#' @param network.int Data frame of edges (source in column 1, target in column 2).
+#' @param gene.rank.vec Named numeric vector (or list) of gene scores.
+#' @return Data frame with columns sourceIDs, targetIDs, edge_score, percentile.
+#' @export
+hub_edge_percentile <- function(network.int, gene.rank.vec) {
+  network.int <- as.data.frame(network.int)
   stopifnot(!is.null(names(gene.rank.vec)))
-  # Ensure all genes in network are in gene.rank.vec
-  if (!all(c(network.int[, 1], network.int[, 2]) %in% names(gene.rank.vec))) {
+  gene.rank.vec <- setNames(as.numeric(unlist(gene.rank.vec)), names(gene.rank.vec))
+  src <- as.character(network.int[, 1]); tgt <- as.character(network.int[, 2])
+  if (!all(c(src, tgt) %in% names(gene.rank.vec))) {
     stop("All genes in network.int must be present in names of gene.rank.vec")
   }
-  # Calculate sum of ranks for each edge
-  gene.rank.vec <- as.numeric(gene.rank.vec) |> setNames(names(gene.rank.vec))
-  edge_scores <- gene.rank.vec[network.int[, 1]] + gene.rank.vec[network.int[, 2]]
-  break.points <- c(-Inf, sort(unique(edge_scores)), Inf)
-  p2 <- 1 - cut(edge_scores, breaks = break.points, labels = FALSE) / length(break.points)
-
-  data.frame(sourceIDs = network.int[, 1],
-             targetIDs = network.int[, 2],
-             ranks.sum = edge_scores,
-             p2 = as.numeric(p2))
+  edge_score <- unname((gene.rank.vec[src] + gene.rank.vec[tgt]) / 2)
+  data.frame(sourceIDs = src, targetIDs = tgt, edge_score = edge_score,
+             percentile = rank(edge_score, ties.method = "max") / length(edge_score),
+             stringsAsFactors = FALSE)
 }
 
-#' activator_significant
-#'
-#' @param hub.int.significant significance of the hub genes
-#' @param network.int network edges
-#' @param Desc description file genes and gene names
-#' @description define the activator significance
-#' @return res
-activator_significant <- function(hub.int.significant, network.int, Desc) {
-  requireNamespace("dplyr")
-  sig.hub <- unique(c(hub.int.significant$sourceIDs, hub.int.significant$targetIDs))
-  net.extension <- network.int[network.int[, 1] %in% sig.hub | network.int[, 2] %in% sig.hub, ]
-
-  g <- igraph::graph.data.frame(net.extension, directed = TRUE)
-
-  datagrid <- data.frame(
-    gene_name = igraph::V(g)$name,
-    pagerank = igraph::page_rank(g)$vector,
-    EdgeCount = igraph::degree(g, mode = "total", normalized = TRUE),
-    degree_out = igraph::degree(g, mode = "out")
-  )
-
-  activators <- ScalN(setNames(datagrid$pagerank, datagrid$gene_name))
-  colnames(activators)[2] <- "pagerank_scaled"
-  # order
-
-  dplyr::left_join(
-    tibble::rownames_to_column(activators, "rowname"),
-    Desc,
-    by = c("rowname"="gene_id")
-  ) %>%
-    dplyr::select(-rowname)
+#' @rdname hub_edge_percentile
+#' @description \code{hub_edge_significance()} is the former name and is kept
+#' for backward compatibility; the former column \code{p2} was a percentile and
+#' is no longer reported as a p-value.
+#' @export
+hub_edge_significance <- function(network.int, gene.rank.vec) {
+  .Deprecated("hub_edge_percentile")
+  hub_edge_percentile(network.int, gene.rank.vec)
 }
 
-
-#' linked_act_hub_net
+#' Decide whether an edge list is directed
 #'
-#' @param hub.int.significant significant network of the hub genes
-#' @param gene.rank.act.significant the ranking of the activator genes
-#' @param network.int full gene network
-#' @return act.net
-linked_act_hub_net <- function(hub.int.significant, gene.rank.act.significant, network.int) {
-  sig.hub <- unique(c(hub.int.significant[, 1], hub.int.significant[, 2]))
-
-  net.extension <- network.int[network.int[, 1] %in% sig.hub | network.int[, 2] %in% sig.hub, ]
-
-  act.genes <- as.character(gene.rank.act.significant[, 1])
-
-  act.net <- net.extension[net.extension[, 1] %in% act.genes | net.extension[, 2] %in% act.genes, ]
-  meanSig <- mean(as.numeric(hub.int.significant[, 3]))
-
-  data.frame(source = act.net[, 1], target = act.net[, 2],
-             score = meanSig, node.type = "act")
+#' @description Heuristic used when \code{directed = NULL}. A regulatory
+#' network (transcription factor -> target) has few genes acting as sources and
+#' few reciprocal edges; an interaction network listed in arbitrary order does
+#' not. Set \code{directed} explicitly whenever the network type is known.
+#' @param network Data frame of edges (source, target).
+#' @return A list with \code{directed} (logical), \code{source_fraction} and
+#' \code{reciprocity}.
+#' @export
+detect_direction <- function(network) {
+  network <- as.data.frame(network)
+  src <- as.character(network[, 1]); tgt <- as.character(network[, 2])
+  source_fraction <- length(unique(src)) / length(unique(c(src, tgt)))
+  reciprocity <- mean(paste(tgt, src) %in% paste(src, tgt))
+  list(directed = source_fraction <= 0.5 && reciprocity < 0.2,
+       source_fraction = source_fraction, reciprocity = reciprocity)
 }
 
-#' linked_eff_hub_net
+#' Rank candidate regulators of the top-scoring genes
 #'
-#' @param hub.int.significant significant network of the hub genes
-#' @param eff.int.significant significant network of the effector genes
-#'
-#' @return eff.net
-linked_eff_hub_net <- function(hub.int.significant, eff.int.significant) {
-  sig.hub <- unique(c(hub.int.significant[, 1], hub.int.significant[, 2]))
-
-  eff.net <- eff.int.significant[eff.int.significant[, 1] %in% sig.hub |
-                                   eff.int.significant[, 2] %in% sig.hub, ]
-
-  data.frame(source = eff.net[, 1],
-             target = eff.net[, 2],
-             score = eff.net[, 3],
-             node.type = "eff")
+#' @description For every gene with network partners, tests whether its
+#' partners are enriched in top-scoring (hub) genes with a hypergeometric test,
+#' which accounts for the number of partners. In a \strong{directed} network
+#' partners are the gene's targets (source -> target), so enriched genes are
+#' candidate upstream regulators of the hubs. In an \strong{undirected} network
+#' (protein-protein interactions, yeast two-hybrid) direction is unknown:
+#' partners are all neighbours and enriched genes are reported as
+#' "associated", never as regulators.
+#' @param network.int Data frame of edges (source, target).
+#' @param scores Named numeric vector of NECorr gene scores.
+#' @param Desc Optional data frame of gene descriptions with a \code{gene_id} column.
+#' @param directed TRUE, FALSE, or NULL to decide with \code{detect_direction()}.
+#' @param hub_fraction Fraction of top-scoring genes defining the hub set.
+#' @param min_partners Minimum number of partners for a gene to be tested.
+#' @param order_by "score" (default) orders the candidates by their own NECorr
+#' score, which the benchmark on CRISPR dependencies favours; "enrichment"
+#' orders them by the hypergeometric p-value of their partners.
+#' @return Data frame with columns Gene, role, n_partners,
+#' n_hub_partners, fold_enrichment, pvalue, FDR, mean_partner_score, Score,
+#' followed by the description columns.
+#' @export
+rank_regulators <- function(network.int, scores, Desc = NULL, directed = NULL,
+                            hub_fraction = 0.05, min_partners = 3,
+                            order_by = c("score", "enrichment")) {
+  order_by <- match.arg(order_by)
+  ord <- function(d) if (order_by == "score") order(-d$Score, d$pvalue) else order(d$pvalue, -d$fold_enrichment)
+  network.int <- unique(as.data.frame(network.int)[, 1:2])
+  src <- as.character(network.int[, 1]); tgt <- as.character(network.int[, 2])
+  keep <- src != tgt
+  src <- src[keep]; tgt <- tgt[keep]
+  if (is.null(directed)) directed <- detect_direction(network.int)$directed
+  scores <- setNames(as.numeric(unlist(scores)), names(scores))
+  genes <- names(scores)
+  n_hub <- max(min(10, length(genes)), ceiling(hub_fraction * length(genes)))
+  hubs <- names(sort(scores, decreasing = TRUE))[seq_len(min(n_hub, length(genes)))]
+  if (directed) {
+    partners <- split(tgt, src)
+  } else {
+    partners <- split(c(tgt, src), c(src, tgt))
+  }
+  partners <- lapply(partners, unique)
+  partners <- partners[lengths(partners) >= min_partners]
+  if (length(partners) == 0) return(NULL)
+  N <- length(genes)
+  res <- data.frame(
+    Gene = names(partners),
+    role = if (directed) "regulator" else "associated",
+    n_partners = lengths(partners),
+    n_hub_partners = vapply(partners, function(p) sum(p %in% hubs), numeric(1)),
+    stringsAsFactors = FALSE, row.names = NULL)
+  # universe excludes the tested gene itself
+  K <- length(hubs) - as.integer(res$Gene %in% hubs)
+  res$fold_enrichment <- (res$n_hub_partners / res$n_partners) / (K / (N - 1))
+  res$pvalue <- stats::phyper(res$n_hub_partners - 1, K, (N - 1) - K, res$n_partners, lower.tail = FALSE)
+  res$FDR <- stats::p.adjust(res$pvalue, method = "BH")
+  res$mean_partner_score <- vapply(partners, function(p) mean(scores[p], na.rm = TRUE), numeric(1))
+  res$Score <- unname(scores[res$Gene])
+  res <- res[ord(res), , drop = FALSE]
+  if (!is.null(Desc)) {
+    Desc <- as.data.frame(Desc)
+    if ("gene_id" %in% names(Desc)) {
+      res <- merge(res, Desc, by.x = "Gene", by.y = "gene_id", all.x = TRUE, sort = FALSE)
+      res <- res[ord(res), , drop = FALSE]
+    }
+  }
+  rownames(res) <- NULL
+  res
 }
 
-
-#' linked_eff_hub_net
-#' @param hub.int.significant significant network of the hub genes
-#' @param eff.int.significant significant network of the effector genes
-#' @return netindex
-linked_eff_hub_net <- function(hub.int.significant, eff.int.significant) {
-  sig.hub <- unique(c(hub.int.significant[, 1], hub.int.significant[, 2]))
-
-  eff.net <- eff.int.significant[eff.int.significant[, 1] %in% sig.hub |
-                                   eff.int.significant[, 2] %in% sig.hub, ]
-
-  data.frame(source = eff.net[, 1],
-             target = eff.net[, 2],
-             score = eff.net[, 3],
-             node.type = "eff")
+#' @rdname rank_regulators
+#' @description \code{activator_significant()} is the former name, kept for
+#' backward compatibility.
+#' @param hub.int.significant Data frame of top edges from \code{hub_edge_percentile()}.
+#' @export
+activator_significant <- function(hub.int.significant, network.int, Desc = NULL,
+                                  scores = NULL, directed = NULL) {
+  .Deprecated("rank_regulators")
+  if (is.null(scores)) {
+    genes <- unique(c(as.character(as.data.frame(network.int)[, 1]), as.character(as.data.frame(network.int)[, 2])))
+    scores <- setNames(rep(0, length(genes)), genes)
+    top <- unique(c(hub.int.significant$sourceIDs, hub.int.significant$targetIDs))
+    scores[top] <- 1
+  }
+  rank_regulators(network.int, scores, Desc, directed)
 }
 
 # =========================

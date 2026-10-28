@@ -30,11 +30,9 @@ multiCorr <- function(expression, edges,
 
   if (!any(valid_edges)) stop("No valid edges after filtering!, maybe your network genes don't match your genes in expression")
 
-  ranks <- matrix(
-    apply(expression, 1, function(row) rank(row, ties.method = "first") - 1),
-    nrow = nrow(expression), byrow = TRUE
-  )
-  storage.mode(ranks) <- "integer"
+  # average ranks (ties handled), one row per gene
+  ranks <- t(apply(expression, 1, rank, ties.method = "average"))
+  storage.mode(ranks) <- "double"
 
   #wt <- 2 * (seq_len(ncol(expression))) - ncol(expression) - 1
 
@@ -46,7 +44,8 @@ multiCorr <- function(expression, edges,
     useBestGCC,
     asymmetricGCC,
     rownames(edges)[valid_edges],  # Pass original rownames of valid edges
-    as.numeric(seed)
+    as.numeric(seed),
+    c("GCC", "PCC", "SCC", "KCC") %in% toupper(methods)   # only the requested coefficients are computed
   )
   # Convert to data.table and bind to edges
   cpp_dt <- safe_as_data_table(res_cpp)

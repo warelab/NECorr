@@ -1,0 +1,17 @@
+SampleID	Condition
+root_1	root
+root_2	root
+root_3	root
+root_4	root
+leaf_1	leaf
+leaf_2	leaf
+leaf_3	leaf
+leaf_4	leaf
+flower_1	flower
+flower_2	flower
+flower_3	flower
+flower_4	flower
+seed_1	seed
+seed_2	seed
+seed_3	seed
+seed_4	seed

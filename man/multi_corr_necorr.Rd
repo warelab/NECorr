@@ -2,39 +2,31 @@
 % Please edit documentation in R/Rcpp_wrappers.R
 \name{multi_corr_necorr}
 \alias{multi_corr_necorr}
-\title{Multi-Correlation Calculation (C++)}
-\usage{
-multi_corr_necorr(
-  expression,
-  ranks,
-  src,
-  tgt,
-  bootstrapIterations,
-  usebestgcc,
-  asymmetricgcc,
-  rownames_in
-)
-}
+\title{Edge correlations (C++)}
 \arguments{
-\item{expression}{Numeric expression matrix.}
+\item{expression}{Numeric expression matrix (genes x samples).}
 
-\item{ranks}{Numeric matrix of ranks.}
+\item{ranks}{Numeric matrix of average ranks, same shape as \code{expression}.}
 
-\item{src}{Integer vector of source indices.}
+\item{src, tgt}{Zero-based row indices of the two genes of each edge.}
 
-\item{tgt}{Integer vector of target indices.}
+\item{bootstrapIterations}{Number of permutations for the GCC p-value.}
 
-\item{bootstrapIterations}{Integer, number of bootstrap iterations.}
+\item{useBestGCC}{Not used.}
 
-\item{usebestgcc}{Logical, whether to use the best correlation method.}
+\item{asymmetricGCC}{Logical, use the asymmetric Gini correlation.}
 
-\item{asymmetricgcc}{Logical, whether to use asymmetric GCC.}
+\item{rownames_in}{Optional row names for the output.}
 
-\item{rownames_in}{Logical, whether row names are provided.}
+\item{seed}{Seed of the permutation test.}
+
+\item{which}{Logical vector of length 4: compute GCC, PCC, SCC, KCC.}
 }
 \value{
-A data frame with correlation values.
+A data frame of correlations and p-values.
 }
 \description{
-Internal function called by NECorr to compute multiple correlation metrics on network edges.
+Computes GCC, PCC, SCC and KCC for each network edge. Use
+\code{\link{multiCorr}} instead of calling this directly.
 }
+\keyword{internal}

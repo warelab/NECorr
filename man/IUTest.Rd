@@ -10,7 +10,8 @@ IUTest(
   sIndex,
   alpha,
   preExpanded = FALSE,
-  adj_sFactors = NULL
+  adj_sFactors = NULL,
+  prop_required = 0.8
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ IUTest(
 \item{preExpanded}{Logical indicating if m.eset is already expanded for replicates.}
 
 \item{adj_sFactors}{Adjusted sample factors (for pre-expanded data).}
+
+\item{prop_required}{Fraction of pairwise comparisons that must be significant (1 = strict IUT).}
 }
 \value{
 List with TS (tissue-specific) and TE (tissue-excluded) logical vectors.
